@@ -1,47 +1,14 @@
-use std::io;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
+mod like_main;
+use like_main::like_main;
+
 #[tokio::main]
-async fn main() -> std::io::Result<()>{
-    let connect = TcpListener::bind("127.0.0.1:8080").await?;
-    let welcome = "welcome! Write something";
+async fn main() {
+    tokio::select! {
+        _ = like_main() => {
 
-    loop {
-        let (mut socet, addr) = connect.accept().await?;
-        send_message(&mut socet, &welcome).await.unwrap();
-        //=============================================
-        tokio::spawn(async move {
-            //========================================================
-            let mut answ = String::new();
-            io::stdin()
-                .read_line(&mut answ)
-                .unwrap();
-            //========================================================
-            send_message(&mut socet, &answ).await.unwrap();
-            let text = recive_fn(&mut socet).await.unwrap();
-            println!("[{addr}]{text}");
-        });
+        }
+        _ = tokio::signal::ctrl_c() => {
+
+        }
     }
-    
-}
-async fn send_message(socet: &mut TcpStream, text: &str) -> std::io::Result<()> {
-    let data = text.as_bytes();
-    let len = data.len() as u32;
-    let len_bytes = len.to_be_bytes();
-
-    socet.write_all(&len_bytes).await?;
-    socet.write_all(&data).await?;
-    Ok(())
-}
-async fn recive_fn(socet: &mut TcpStream) -> std::io::Result<String>{
-    let mut len_bytes = [0u8; 4];
-    socet.read_exact(&mut len_bytes).await?;
-    let len = u32::from_be_bytes(len_bytes) as usize;
-
-    let mut bufer = vec![0u8;len];
-    socet.read_exact(&mut bufer).await?;
-
-    let text = String::from_utf8_lossy(&bufer).to_string();
-
-    Ok(text)
 }
