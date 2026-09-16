@@ -7,3 +7,4 @@ edition = "2024"
 tokio = { version = "1", features = ["full"] }
 pnet = "0.35"
 nfq = "0.2.5"
+rand = "0.8.0"
