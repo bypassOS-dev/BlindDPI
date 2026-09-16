@@ -1,7 +1,7 @@
 use tokio::process::Command;
 
 pub async fn run_iptables() {
-    let _status = Command::new("iptables")
+    let status = Command::new("iptables")
         .arg("-A")
         .arg("OUTPUT")
         .arg("-p")
@@ -15,4 +15,5 @@ pub async fn run_iptables() {
         .status()
         .await
         .expect("Executing error");
+    println!("{status}");
 }

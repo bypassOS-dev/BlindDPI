@@ -1,14 +1,38 @@
 mod like_main;
 use like_main::like_main;
+use tokio::process::Command;
 
 #[tokio::main]
 async fn main() {
-    tokio::select! {
-        _ = like_main() => {
+    loop {
+        tokio::select! {
+            _ = tokio::task::spawn_blocking(|| {
+                like_main() 
+            }) => {
 
-        }
-        _ = tokio::signal::ctrl_c() => {
-
+            }
+            _ = tokio::signal::ctrl_c() => {
+                remove_iptables().await;
+                std::process::exit(0);
+            }
         }
     }
+    
+}
+
+pub async fn remove_iptables() {
+    let _status = Command::new("iptables")
+        .arg("-D")
+        .arg("OUTPUT")
+        .arg("-p")
+        .arg("tcp")
+        .arg("--dport")
+        .arg("443")
+        .arg("-j")
+        .arg("NFQUEUE")
+        .arg("--queue-num")
+        .arg("0")
+        .status()
+        .await
+        .expect("Executing error");
 }
