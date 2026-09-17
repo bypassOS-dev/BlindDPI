@@ -19,7 +19,9 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
     let mut queue = Queue::open()?;
     queue.bind(0)?;
     println!("binding");
+
     let mut pending: HashMap<u32, Vec<u8>> = HashMap::new();
+
     loop {
         let mut msg = queue.recv()?;
         let payload = msg.get_payload();
@@ -41,46 +43,37 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                 }
 
                 if let Some(start_seq) = matched_start_seq {
-                    
+                    let data = pending.get_mut(&start_seq).unwrap();
+                    data.extend_from_slice(tcp_payload);
+
+                    if let Some((pos, domain)) = find_sni(data) {
+                        println!("Pos: {pos}, domain: {domain}");
+
+                        let trash = rand::thread_rng().gen_range(10..=33);
+
+                        let real_seq = start_seq;
+
+                        let junk: Vec<u8> = vec![0x41; trash];
+                        let mut packet1_payload = junk.clone();
+                        packet1_payload.extend_from_slice(&data[..pos]);
+
+                        let packet1_seq = real_seq.wrapping_sub(trash as u32);
+                        let packet2_payload = &data[pos..];
+                        let packet2_seq = real_seq + pos as u32;
+
+                        let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                        let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                        let ack = tcp_packet.get_acknowledgement();
+
+                        send_packet(my_ip, server_ip, packet1_seq, ack, 64, &packet1_payload).await?;
+                        send_packet(my_ip, server_ip, packet2_seq, ack, 64, packet2_payload).await?;
+
+                        pending.remove(&start_seq);
+                    }
+                    msg.set_verdict(Verdict::Drop);
+                    queue.verdict(msg)?;
+                    continue;
                 }
-                let expected_seq = pending_seq.wrapping_add(pending_data.len() as u32);
-                if expected_seq == sequence {
-                    pending_data.extend_from_slice(tcp_payload);
-                    if let Some((split_pos, domain)) = find_sni(pending_data) {
-
-                            println!("Domain: {domain}");
-                            let trash = rand::thread_rng().gen_range(10..=30);
-
-                            let real_seq = *pending_seq;
-                            println!("1");
-                            let junk: Vec<u8> = vec![0x41; trash];
-                            let mut packet1_payload = junk.clone();
-
-                            packet1_payload.extend_from_slice(&pending_data[..split_pos]);
-                            println!("2");
-                            let packet1_sequence = real_seq.wrapping_sub(trash as u32);
-
-                            let packet2_payload = &pending_data[split_pos..];
-                            let packet2_sequence = real_seq + split_pos as u32;
-
-                            let my_ip = SocketAddrV4::new(
-                                ipv4_packet.get_source(),
-                                tcp_packet.get_source()
-                            );
-                            let dst_ip = SocketAddrV4::new(
-                                ipv4_packet.get_destination(), 
-                                tcp_packet.get_destination()
-                            );
-
-                            let ack = tcp_packet.get_acknowledgement();
-
-                            send_packet(my_ip, dst_ip, packet1_sequence, ack, 64, &packet1_payload).await?;
-                            send_packet(my_ip, dst_ip, packet2_sequence, ack, 64, &packet2_payload).await?;
-                            println!("3");
-                            pending = None;
-                        }
-                }
-                
 
                 if tcp_payload.len() > 5 && tcp_payload[0] == 0x16 {
                     println!("This looking like TSP handshake!!!");
