@@ -1,10 +1,12 @@
 pub fn find_sni(buf: &[u8]) -> Option<(usize, String)>{
-    let mut pos = 0usize;  // Create variable pos -> start index of byte whit a value 0 
-    pos += 5;                    // 5 bytes --> TLS Record Header (Type, Version, Lenght)
-    pos += 4;                   // 4 bytes --> Handshake header (handshake type, Handshake's lenght)
-    pos += 2;                  // 2 bytes --> Client Version
-    pos += 32;                //32 bytes --> random number
-                             // In total: 43 bytes
+    let mut pos = 0usize;             // Create variable pos -> start index of byte whit a value 0 
+    pos += 3;                               // 5 bytes --> TLS Record Header (Type, Version)
+    let lenght = &buf[pos..pos+2];  // 2 bytes --> Lenght all packet
+    pos += 2;                             // Add to counter 2 bytes  of lenght packet
+    pos += 4;                            // 4 bytes --> Handshake header (handshake type, Handshake's lenght)
+    pos += 2;                           // 2 bytes --> Client Version
+    pos += 32;                         //32 bytes --> random number
+                                      // In total: 43 bytes
     let session_id_len = *buf.get(pos)? as usize;  // Look at the 43rd bytes of the packet
     pos += 1 + session_id_len;                                 // Move the pointer to the 1 and "session_id_len" bytes
 
@@ -33,7 +35,16 @@ pub fn find_sni(buf: &[u8]) -> Option<(usize, String)>{
             let name_bytes = buf.get(name_start..name_start + name_len)?;
             let domain = String::from_utf8(name_bytes.to_vec()).ok()?;
             let split_pos = name_start + name_len / 2;
-            return Some((split_pos, domain)); // Split domain
+
+            let len = u16::from_be_bytes([*lenght.get(0)?, *lenght.get(1)?]);
+            let real_len = buf.len();
+
+            if (len as usize + 5) == real_len {
+                return Some((split_pos, domain)); // Split domain
+            } else {
+                return None;
+            }
+            
         }
 
         if ext_len == 0 && ext_type == 0 {     //if it useless packet then just leave loop
