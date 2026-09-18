@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddrV4};
+use std::{collections::HashMap, net::SocketAddrV4, u8};
 
 use nfq::{Queue, Verdict};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
@@ -77,6 +77,10 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 
                 if tcp_payload.len() > 5 && tcp_payload[0] == 0x16 {
                     println!("This looking like TSP handshake!!!");
+
+                    if let Some((pos, domain)) = find_sni(tcp_payload) {
+
+                    }
                     pending.insert(sequence, tcp_payload.to_vec());
 
                     msg.set_verdict(Verdict::Drop);
@@ -88,4 +92,38 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
             }
         }
     }
+}
+async fn send_fake_packet(
+    pos: usize, 
+    domain: String, 
+    start_seq: u32, 
+    data: Vec<u8>, 
+    ipv4_packet: Ipv4Packet<'static>, 
+    tcp_packet: TcpPacket<'static>, 
+    mut pending: HashMap<u32, Vec<u8>>
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    println!("Pos: {pos}, domain: {domain}");
+
+    let trash = rand::thread_rng().gen_range(10..=33);
+
+    let real_seq = start_seq;
+
+    let junk: Vec<u8> = vec![0x41; trash];
+    let mut packet1_payload = junk.clone();
+    packet1_payload.extend_from_slice(&data[..pos]);
+
+    let packet1_seq = real_seq.wrapping_sub(trash as u32);
+    let packet2_payload = &data[pos..];
+    let packet2_seq = real_seq + pos as u32;
+
+    let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+    let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+    let ack = tcp_packet.get_acknowledgement();
+
+    send_packet(my_ip, server_ip, packet1_seq, ack, 64, &packet1_payload).await?;
+    send_packet(my_ip, server_ip, packet2_seq, ack, 64, packet2_payload).await?;
+
+    pending.remove(&start_seq);
+
+    Ok(())
 }
