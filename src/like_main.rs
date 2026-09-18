@@ -1,16 +1,16 @@
 use std::{collections::HashMap, net::SocketAddrV4, u8};
-
 use nfq::{Queue, Verdict};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
-
+//==============================================================
 mod find_sni;
 mod iptables;
 mod send_packet;
-
+//===========================================================
 use send_packet::send_packet;
 use iptables::run_iptables;
 use find_sni::find_sni;
 use rand::Rng;
+//===================================================
 
 pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Start iptables");
@@ -43,25 +43,24 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                 }
 
                 if let Some(start_seq) = matched_start_seq {
-                    let data = pending.get_mut(&start_seq).unwrap();
-                    data.extend_from_slice(tcp_payload);
+                    if let Some(mut data) = pending.remove(&start_seq){
+                        data.extend_from_slice(tcp_payload);
+                        if let Some((pos, domain)) = find_sni(&data) {
+                            let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                            let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                            let ack = tcp_packet.get_acknowledgement();
 
-                    if let Some((pos, domain)) = find_sni(data) {
-                        let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
-                        let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
-                        let ack = tcp_packet.get_acknowledgement();
-
-                        send_fake_packet(pos, &domain, start_seq, data, my_ip, server_ip, ack).await?;
-                        pending.remove(&start_seq);
+                            send_fake_packet(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
+                        }
+                        msg.set_verdict(Verdict::Drop);
+                        queue.verdict(msg)?;
+                        continue;
                     }
-                    msg.set_verdict(Verdict::Drop);
-                    queue.verdict(msg)?;
-                    continue;
                 }
 
                 if tcp_payload.len() > 5 && tcp_payload[0] == 0x16 {
-                    println!("This looking like TSP handshake!!!");
-
+                    println!("This looking like TSP handshake!!! First bytes: {:02x?}", &tcp_payload[..20.min(tcp_payload.len())]); 
+                   
                     if let Some((pos, domain)) = find_sni(tcp_payload) {
                         let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
                         let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
@@ -76,12 +75,16 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     queue.verdict(msg)?;
                     continue;
                 }
+                println!("pending size: {}", pending.len());
                 msg.set_verdict(Verdict::Accept);
                 queue.verdict(msg)?;
             }
         }
     }
 }
+//====================================================
+//==========================
+//====================================================
 async fn send_fake_packet(
     pos: usize, 
     domain: &str, 
