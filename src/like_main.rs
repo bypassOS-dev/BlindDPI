@@ -37,7 +37,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                 for (&strat_seq, data) in pending.iter() {
                     let expected_seq = strat_seq.wrapping_add(data.len() as u32);
                     if expected_seq == sequence {
-                        matched_start_seq = Some(expected_seq);
+                        matched_start_seq = Some(strat_seq);
                         break;
                     }
                 }
@@ -77,7 +77,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 
                 if tcp_payload.len() > 5 && tcp_payload[0] == 0x16 {
                     println!("This looking like TSP handshake!!!");
-
+                    pending.insert(sequence, tcp_payload.to_vec());
 
                     msg.set_verdict(Verdict::Drop);
                     queue.verdict(msg)?;
