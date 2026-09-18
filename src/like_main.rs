@@ -47,28 +47,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     data.extend_from_slice(tcp_payload);
 
                     if let Some((pos, domain)) = find_sni(data) {
-                        println!("Pos: {pos}, domain: {domain}");
-
-                        let trash = rand::thread_rng().gen_range(10..=33);
-
-                        let real_seq = start_seq;
-
-                        let junk: Vec<u8> = vec![0x41; trash];
-                        let mut packet1_payload = junk.clone();
-                        packet1_payload.extend_from_slice(&data[..pos]);
-
-                        let packet1_seq = real_seq.wrapping_sub(trash as u32);
-                        let packet2_payload = &data[pos..];
-                        let packet2_seq = real_seq + pos as u32;
-
-                        let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
-                        let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
-                        let ack = tcp_packet.get_acknowledgement();
-
-                        send_packet(my_ip, server_ip, packet1_seq, ack, 64, &packet1_payload).await?;
-                        send_packet(my_ip, server_ip, packet2_seq, ack, 64, packet2_payload).await?;
-
-                        pending.remove(&start_seq);
+                        send_fake_packet(pos, domain, start_seq, data, ipv4_packet, tcp_packet, pending).await;
                     }
                     msg.set_verdict(Verdict::Drop);
                     queue.verdict(msg)?;
@@ -79,7 +58,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     println!("This looking like TSP handshake!!!");
 
                     if let Some((pos, domain)) = find_sni(tcp_payload) {
-
+                        send_fake_packet(pos, domain, sequence, tcp_payload.to_vec(), ipv4_packet, tcp_packet, pending).await;
                     }
                     pending.insert(sequence, tcp_payload.to_vec());
 
