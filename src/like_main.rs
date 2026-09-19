@@ -58,7 +58,11 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     }
                 }
 
-                if tcp_payload.len() > 5 && tcp_payload[0] == 0x16 {
+                if tcp_payload.len() >= 5 
+                    && tcp_payload[0] == 0x16 
+                    && tcp_payload[1] == 0x03
+                    && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
+                {
                     println!("This looking like TSP handshake!!! First bytes: {:02x?}", &tcp_payload[..20.min(tcp_payload.len())]); 
                    
                     if let Some((pos, domain)) = find_sni(tcp_payload) {
