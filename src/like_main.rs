@@ -13,12 +13,10 @@ use rand::Rng;
 //===================================================
 
 pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    println!("Start iptables");
     run_iptables().await;
-    println!("Iptables working..?");
+
     let mut queue = Queue::open()?;
     queue.bind(0)?;
-    println!("binding");
 
     let mut pending: HashMap<u32, Vec<u8>> = HashMap::new();
 
@@ -28,7 +26,6 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
         
         if let Some(ipv4_packet) = Ipv4Packet::new(payload) {
             if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
-                println!("We get a packet");
                 let sequence = tcp_packet.get_sequence();
                 let tcp_payload = tcp_packet.payload();
 
@@ -62,9 +59,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     && tcp_payload[0] == 0x16 
                     && tcp_payload[1] == 0x03
                     && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
-                {
-                    println!("This looking like TSP handshake!!! First bytes: {:02x?}", &tcp_payload[..20.min(tcp_payload.len())]); 
-                   
+                {  
                     if let Some((pos, domain)) = find_sni(tcp_payload) {
                         let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
                         let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
@@ -91,15 +86,13 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 //====================================================
 async fn send_fake_packet(
     pos: usize, 
-    domain: &str, 
+    _domain: &str, 
     start_seq: u32, 
     data: &[u8], 
     my_ip: SocketAddrV4,
     server_ip: SocketAddrV4,
     ack: u32,    
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    println!("Pos: {pos}, domain: {domain}");
-
     let trash = rand::thread_rng().gen_range(10..=33);
     let real_seq = start_seq;
 
