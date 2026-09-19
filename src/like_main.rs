@@ -11,6 +11,7 @@ use send_packet::send_packet;
 use iptables::run_iptables;
 use find_sni::find_sni;
 use rand::Rng;
+use get_domain::is_domain_in_white_list;
 //===================================================
 
 pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -21,7 +22,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 
     let mut pending: HashMap<u32, Vec<u8>> = HashMap::new();
 
-    let _white_list: Vec<String> = fs::read_to_string("white_list.txt")
+    let white_list: Vec<String> = fs::read_to_string("white_list.txt")
         .expect("[Error]File white list doesn't exist!")
         .lines()
         .map(|s| s.trim().to_lowercase())
@@ -51,11 +52,24 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     if let Some(mut data) = pending.remove(&start_seq){
                         data.extend_from_slice(tcp_payload);
                         if let Some((pos, domain)) = find_sni(&data) {
-                            let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
-                            let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
-                            let ack = tcp_packet.get_acknowledgement();
+                            let split_tunneling = is_domain_in_white_list(&domain, &white_list);
+                            if split_tunneling {
+                                let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                let ack = tcp_packet.get_acknowledgement();
 
-                            send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
+                                send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
+                            } else {
+                                let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                let ack = tcp_packet.get_acknowledgement();
+
+                                let p1_len  = data.len() - tcp_payload.len();
+                                let p1_payload = &data[..p1_len];
+                                let p2_payload = &data[p1_len..];
+                                send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload).await?;
+                                send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload).await?;
+                            }
                         }
                         msg.set_verdict(Verdict::Drop);
                         queue.verdict(msg)?;
@@ -68,12 +82,21 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     && tcp_payload[1] == 0x03
                     && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
                 {  
+                    
                     if let Some((pos, domain)) = find_sni(tcp_payload) {
-                        let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
-                        let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
-                        let ack = tcp_packet.get_acknowledgement();
+                        let split_tunneling = is_domain_in_white_list(&domain, &white_list);
+                        if split_tunneling {
+                            let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                            let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                            let ack = tcp_packet.get_acknowledgement();
 
-                        send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                            send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                        }else {
+                            msg.set_verdict(Verdict::Accept);
+                            queue.verdict(msg)?;
+                            continue;
+                        }
+                        
                     }else {
                         pending.insert(sequence, tcp_payload.to_vec());
                     }
@@ -82,7 +105,6 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     queue.verdict(msg)?;
                     continue;
                 }
-                println!("pending size: {}", pending.len());
                 msg.set_verdict(Verdict::Accept);
                 queue.verdict(msg)?;
             }
