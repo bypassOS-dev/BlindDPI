@@ -1,10 +1,11 @@
-use std::{collections::HashMap, net::SocketAddrV4, u8};
+use std::{collections::HashMap, net::SocketAddrV4, u8, fs};
 use nfq::{Queue, Verdict};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
 //==============================================================
 mod find_sni;
 mod iptables;
 mod send_packet;
+mod get_domain;
 //===========================================================
 use send_packet::send_packet;
 use iptables::run_iptables;
@@ -19,6 +20,13 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
     queue.bind(0)?;
 
     let mut pending: HashMap<u32, Vec<u8>> = HashMap::new();
+
+    let _white_list: Vec<String> = fs::read_to_string("white_list.txt")
+        .expect("[Error]File white list doesn't exist!")
+        .lines()
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty() && !s.starts_with('#'))
+        .collect();
 
     loop {
         let mut msg = queue.recv()?;
@@ -47,7 +55,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                             let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                             let ack = tcp_packet.get_acknowledgement();
 
-                            send_fake_packet(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
+                            send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
                         }
                         msg.set_verdict(Verdict::Drop);
                         queue.verdict(msg)?;
@@ -65,7 +73,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                         let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                         let ack = tcp_packet.get_acknowledgement();
 
-                        send_fake_packet(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                        send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
                     }else {
                         pending.insert(sequence, tcp_payload.to_vec());
                     }
@@ -84,8 +92,8 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 //====================================================
 //==========================
 //====================================================
-async fn send_fake_packet(
-    pos: usize, 
+async fn send_fake_packets(
+    pos: usize,     
     _domain: &str, 
     start_seq: u32, 
     data: &[u8], 
