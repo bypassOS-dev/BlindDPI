@@ -4,17 +4,19 @@ use tokio::process::Command;
 
 #[tokio::main]
 async fn main() {
-    tokio::select! {
-        result = like_main() => {
-            eprintln!("like_main exited: {:?}", result);
-        }
-        _ = tokio::signal::ctrl_c() => {
-            remove_iptables().await;
-            std::process::exit(0);
-        }
-    }
-}
+    println!("Waiting run, please...");
 
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(like_main()).ok();
+    });
+
+    tokio::signal::ctrl_c().await.unwrap();
+
+    println!("\nOk... make clean the iptables...");
+    remove_iptables().await;
+    std::process::exit(0);
+}
 pub async fn remove_iptables() {
     let _status = Command::new("iptables")
         .arg("-D")
