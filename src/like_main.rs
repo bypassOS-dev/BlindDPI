@@ -6,8 +6,10 @@ mod find_sni;
 mod iptables;
 mod send_packet;
 mod get_domain;
+mod check_rus_domain;
 //===========================================================
 use send_packet::send_packet;
+use check_rus_domain::is_domain_rus;
 use iptables::run_iptables;
 use find_sni::find_sni;
 use rand::Rng;
@@ -59,7 +61,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                 let ack = tcp_packet.get_acknowledgement();
 
                                 send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
-                            } else {
+                            } else if split_tunneling_bool && is_domain_rus(&domain).await{
                                 let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
                                 let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                                 let ack = tcp_packet.get_acknowledgement();
@@ -69,6 +71,12 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                 let p2_payload = &data[p1_len..];
                                 send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload).await?;
                                 send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload).await?;
+                            } else if split_tunneling_bool == false {
+                                let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                let ack = tcp_packet.get_acknowledgement();
+
+                                send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
                             }
                         }
                         msg.set_verdict(Verdict::Drop);
