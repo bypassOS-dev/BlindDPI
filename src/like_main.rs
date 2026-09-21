@@ -14,7 +14,7 @@ use rand::Rng;
 use get_domain::is_domain_in_white_list;
 //===================================================
 
-pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     run_iptables().await;
 
     let mut queue = Queue::open()?;
@@ -53,7 +53,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                         data.extend_from_slice(tcp_payload);
                         if let Some((pos, domain)) = find_sni(&data) {
                             let split_tunneling = is_domain_in_white_list(&domain, &white_list);
-                            if split_tunneling {
+                            if split_tunneling && split_tunneling_bool {
                                 let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
                                 let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                                 let ack = tcp_packet.get_acknowledgement();
@@ -85,7 +85,7 @@ pub async fn like_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
                     
                     if let Some((pos, domain)) = find_sni(tcp_payload) {
                         let split_tunneling = is_domain_in_white_list(&domain, &white_list);
-                        if split_tunneling {
+                        if split_tunneling && split_tunneling_bool{
                             let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
                             let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                             let ack = tcp_packet.get_acknowledgement();

@@ -4,11 +4,25 @@ use tokio::process::Command;
 
 #[tokio::main]
 async fn main() {
-    println!("Waiting run, please...");
+    let split_tunneling_bool:bool;
+    println!("Please wait for a launch");
+    //===============Split tunneling=======================
+    println!("Enable split tunneling? (yes/no)  ");
+    let mut split_tunneling = String::new();
+    std::io::stdin()
+        .read_line(&mut split_tunneling)
+        .expect("[Error line ~15]Sorry, read error");
+    let split_tunneling = split_tunneling.trim();
 
-    std::thread::spawn(|| {
+    if split_tunneling == "yes" || split_tunneling == "y"   {
+        split_tunneling_bool = true;
+    }else {
+        split_tunneling_bool = false;
+    }
+
+    std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(like_main()).ok();
+        rt.block_on(like_main(split_tunneling_bool)).ok();
     });
 
     tokio::signal::ctrl_c().await.unwrap();
