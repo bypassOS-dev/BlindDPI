@@ -76,6 +76,10 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                 let ack = tcp_packet.get_acknowledgement();
 
                                 send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
+                            } else {
+                            msg.set_verdict(Verdict::Accept);
+                            queue.verdict(msg)?;
+                            continue;
                             }
                         }
                         msg.set_verdict(Verdict::Drop);
