@@ -5,13 +5,13 @@ use tokio::process::Command;
 #[tokio::main]
 async fn main() {
     let split_tunneling_bool:bool;
-    println!("Please wait for a launch");
+    println!("Please wait for a launch...");
     //===============Split tunneling=======================
     println!("Enable split tunneling? (yes/no)  ");
     let mut split_tunneling = String::new();
     std::io::stdin()
         .read_line(&mut split_tunneling)
-        .expect("[Error line ~15]Sorry, read error");
+        .expect("[Error line ~14]Sorry, read error");
     let split_tunneling = split_tunneling.trim();
 
     if split_tunneling == "yes" || split_tunneling == "y"   {
@@ -19,7 +19,7 @@ async fn main() {
     }else {
         split_tunneling_bool = false;
     }
-
+    //=====================================================
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(like_main(split_tunneling_bool)).ok();

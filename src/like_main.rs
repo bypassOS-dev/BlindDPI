@@ -147,7 +147,9 @@ async fn send_fake_packets(
     let trash = rand::thread_rng().gen_range(10..=33);
     let real_seq = start_seq;
 
-    let junk: Vec<u8> = vec![0x41; trash];
+    let mut junk: Vec<u8> = vec![0u8; trash];
+    rand::thread_rng().fill(&mut junk[..]);
+    
     let mut packet1_payload = junk.clone();
     packet1_payload.extend_from_slice(&data[..pos]);
 
@@ -155,8 +157,7 @@ async fn send_fake_packets(
     let packet2_payload = &data[pos..];
     let packet2_seq = real_seq + pos as u32;
 
-    send_packet(my_ip, server_ip, packet1_seq, ack, 64, &packet1_payload).await?;
     send_packet(my_ip, server_ip, packet2_seq, ack, 64, packet2_payload).await?;
-
+    send_packet(my_ip, server_ip, packet1_seq, ack, 64, &packet1_payload).await?;
     Ok(())
 }
