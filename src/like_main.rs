@@ -1,5 +1,7 @@
-use std::{collections::HashMap, net::SocketAddrV4, u8, fs};
+use std::{collections::HashMap, fs, net::SocketAddrV4, u8};
 use nfq::{Queue, Verdict};
+use tokio::io as tokio_io; 
+use tokio::io::AsyncWriteExt;
 use std::time::{Instant, Duration};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
 //==============================================================
@@ -24,6 +26,19 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
 
     let mut pending: HashMap<u32, (Instant, Vec<u8>)> = HashMap::new();
     let mut last_clean = Instant::now();
+
+    tokio::spawn(async {
+        let time = Instant::now();
+        let mut stdout = tokio_io::stdout(); 
+        loop {
+            let msg = format!("\r\x1b[2KBlindDPI is working ({:?})", time.elapsed().as_secs());
+
+            if stdout.write_all(msg.as_bytes()).await.is_ok() {
+                let _ = stdout.flush().await;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    });
 
     let white_list: Vec<String> = fs::read_to_string("white_list.txt")
         .expect("[Error]File white list doesn't exist!")
