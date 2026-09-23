@@ -31,7 +31,17 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
         let time = Instant::now();
         let mut stdout = tokio_io::stdout(); 
         loop {
-            let msg = format!("\r\x1b[2KBlindDPI is working ({:?})", time.elapsed().as_secs());
+            let total_secs = time.elapsed().as_secs();
+
+            let hours = total_secs / 3600;
+            let minutes = (total_secs % 3600) / 60;
+            let seconds = total_secs % 60;
+
+            let msg = format!(
+                "\r\x1b[2KBlindDPI is working ({:02}:{:02}:{:02}sec)",
+                hours, minutes, seconds
+            );
+
 
             if stdout.write_all(msg.as_bytes()).await.is_ok() {
                 let _ = stdout.flush().await;
