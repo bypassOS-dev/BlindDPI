@@ -166,6 +166,9 @@ async fn send_fake_packets(
     server_ip: SocketAddrV4,
     ack: u32,    
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let packet_1_payload: Vec<u8>;
+    let packet_2_payload: Vec<u8>;
+    //=================
     let trash = rand::thread_rng().gen_range(10..=33);
     let real_seq = start_seq;
 
@@ -175,8 +178,23 @@ async fn send_fake_packets(
     let mut packet1_payload = junk.clone();
     packet1_payload.extend_from_slice(&data[..pos]);
 
+    if packet1_payload.len() >= 100 {
+        let half = packet1_payload.len() / 2;
+        packet_1_payload = packet1_payload[..half].to_vec();
+        packet_2_payload = packet1_payload[half..].to_vec();
+    }
     let packet1_seq = real_seq.wrapping_sub(trash as u32);
     let packet2_payload = &data[pos..];
+
+    let will_split = rand::thread_rng().gen_range(1..3);
+    let average = packet1_payload.len() / will_split;
+    for i in 1..=will_split {
+        if i == will_split {
+
+        }
+        let split = rand::thread_rng().gen_range(average - 3..average +  3  );
+    }
+
     let packet2_seq = real_seq + pos as u32;
 
     send_packet(my_ip, server_ip, packet2_seq, ack, 64, packet2_payload).await?;
