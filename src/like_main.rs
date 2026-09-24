@@ -2,6 +2,7 @@ use std::{collections::HashMap, fs, net::SocketAddrV4, u8};
 use nfq::{Queue, Verdict};
 use tokio::io as tokio_io; 
 use tokio::io::AsyncWriteExt;
+use rand::seq::SliceRandom;
 use std::time::{Instant, Duration};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
 //==============================================================
@@ -168,10 +169,10 @@ async fn send_fake_packets(
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let packet_1_payload: Vec<u8>;
     let packet_2_payload: Vec<u8>;
-    let mut another_packets: Vec<Vec<u8>> = vec![];
+    let mut another_packets: Vec<(Vec<u8>, u32)> = vec![];
     //=================
     let trash = rand::thread_rng().gen_range(10..=33);
-    let real_seq = start_seq;
+    let real_seq = start_seq.wrapping_sub(trash as u32);
 
     let mut junk: Vec<u8> = vec![0u8; trash];
     rand::thread_rng().fill(&mut junk[..]);
@@ -182,8 +183,12 @@ async fn send_fake_packets(
     if packet1_payload.len() >= 100 {
         let half = packet1_payload.len() / 2;
         packet_1_payload = packet1_payload[..half].to_vec();
+        let packet_1_seq = real_seq;
         packet_2_payload = packet1_payload[half..].to_vec();
+        let packet_2_seq = real_seq.wrapping_add(half as u32);
 
+        another_packets.push((packet_1_payload, packet_1_seq));
+        another_packets.push((packet_2_payload, packet_2_seq));
         let packet2_payload = &data[pos..];
 
         if packet2_payload.len() <= 400 {
@@ -192,11 +197,11 @@ async fn send_fake_packets(
             let mut sum = 0;
             for i in 1..=will_split {
                 if i == will_split {
-                    let need_to_add = packet2_payload.len() - sum;
-                    another_packets.push(packet2_payload[sum..need_to_add].to_vec());
+                    another_packets.push((packet2_payload[sum..].to_vec(), packet_2_seq + sum as u32));
+                    break;
                 }
                 let split = rand::thread_rng().gen_range(average - 10..average +  10  );
-                another_packets.push(packet2_payload[sum..sum + split].to_vec());
+                another_packets.push((packet2_payload[sum..sum + split].to_vec(), packet_2_seq + sum as u32));
                 sum += split;
             }
         } else {
@@ -206,18 +211,16 @@ async fn send_fake_packets(
 
             for i in 1..=will_split {
                 if i == will_split {
-                    let need_to_add = packet2_payload.len() - sum;
-                    another_packets.push(packet2_payload[sum..need_to_add].to_vec());
+                    another_packets.push((packet2_payload[sum..].to_vec(), packet_2_seq + sum as u32));
                 }
                 let split = rand::thread_rng().gen_range(average - 20..average +  20  );
-                another_packets.push(packet2_payload[sum..sum + split].to_vec());
+                another_packets.push((packet2_payload[sum..sum + split].to_vec(), packet_2_seq + sum as u32));
                 sum += split;
             }
-            another_packets.push(packet_1_payload);
-            another_packets.push(packet_2_payload);
         }
     } else {
         let packet2_payload = &data[pos..];
+        let packet_2_seq = real_seq.wrapping_add(packet1_payload.len() as u32);
 
         if packet2_payload.len() <= 400 {
             let will_split = rand::thread_rng().gen_range(2..5);
@@ -225,14 +228,12 @@ async fn send_fake_packets(
             let mut sum = 0;
             for i in 1..=will_split {
                 if i == will_split {
-                    let need_to_add = packet2_payload.len() - sum;
-                    another_packets.push(packet2_payload[sum..need_to_add].to_vec());
+                    another_packets.push((packet2_payload[sum..].to_vec(), packet_2_seq + sum as u32));
                 }
                 let split = rand::thread_rng().gen_range(average - 10..average +  10  );
-                another_packets.push(packet2_payload[sum..sum + split].to_vec());
+                another_packets.push((packet2_payload[sum..sum + split].to_vec(), packet_2_seq + sum as u32));
                 sum += split;
             }
-            another_packets.push(packet1_payload);
         } else {
             let will_split = rand::thread_rng().gen_range(5..10);
             let average = packet2_payload.len() / will_split;
@@ -241,14 +242,19 @@ async fn send_fake_packets(
             for i in 1..=will_split {
                 if i == will_split {
                     let need_to_add = packet2_payload.len() - sum;
-                    another_packets.push(packet2_payload[sum..need_to_add].to_vec());
+                    another_packets.push((packet2_payload[sum..need_to_add].to_vec(), packet_2_seq + sum as u32));
                 }
                 let split = rand::thread_rng().gen_range(average - 20..average +  20  );
-                another_packets.push(packet2_payload[sum..sum + split].to_vec());
+                another_packets.push((packet2_payload[sum..sum + split].to_vec(), packet_2_seq + sum as u32));
                 sum += split;
             }
-            another_packets.push(packet1_payload);
         }
     }
+    another_packets.shuffle(&mut rand::thread_rng());
+
+    for (payload, seq) in another_packets {
+        send_packet(my_ip, server_ip, seq, ack, 64, &payload).await?;
+    }
+
     Ok(())
 }
