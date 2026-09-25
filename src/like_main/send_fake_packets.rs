@@ -66,7 +66,8 @@ pub async fn send_fake_packets(
                     break;
                 }
                 let split = rand::thread_rng().gen_range(average - 20..average +  20  );
-                another_packets.push((packet2_payload[sum..sum + split].to_vec(), packet_2_seq + sum as u32));
+                let end = (sum + split).min(packet2_payload.len());
+                another_packets.push((packet2_payload[sum..end].to_vec(), packet_2_seq + sum as u32));
                 sum += split;
             }
         }
