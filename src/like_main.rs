@@ -1,24 +1,25 @@
-    use std::{collections::HashMap, fs, net::SocketAddrV4, u8};
-    use nfq::{Queue, Verdict};
-    use tokio::io as tokio_io; 
-    use tokio::io::AsyncWriteExt;
-    use std::time::{Duration, Instant};
-    use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
-    //==============================================================
-    mod find_sni;
-    mod iptables;
-    mod get_domain;
-    mod send_fake_packets;
-    //===========================================================
-    use send_fake_packets::send_fake_packets;
-    use iptables::run_iptables;
-    use crate::send_packet::send_packet;
-    use find_sni::find_sni;
-    use get_domain::is_domain_in_white_list;
-    use get_domain::is_domain_rus;
-    //===================================================
-
+use std::{collections::HashMap, fs, net::SocketAddrV4, u8};
+use nfq::{Queue, Verdict};
+use tokio::io as tokio_io; 
+use tokio::io::AsyncWriteExt;
+use std::time::{Duration, Instant};
+use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
+//==============================================================
+mod find_sni;
+pub mod iptables;
+mod get_domain;
+mod send_fake_packets;
+//===========================================================
+use send_fake_packets::send_fake_packets;
+use iptables::run_iptables;
+use crate::send_packet::send_packet;
+use find_sni::find_sni;
+use get_domain::is_domain_in_white_list;
+use get_domain::is_domain_rus;
+//===================================================
+#[cfg(target_os = "linux")]
     pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    
         run_iptables().await;
 
         let mut queue = Queue::open()?;
@@ -26,7 +27,7 @@
 
         let mut pending: HashMap<u32, (Instant, Vec<u8>)> = HashMap::new();
         let mut last_clean = Instant::now();
-
+        //=====================Time counter=========================
         tokio::spawn(async {
             let time = Instant::now();
             let mut stdout = tokio_io::stdout(); 
@@ -46,18 +47,20 @@
                 if stdout.write_all(msg.as_bytes()).await.is_ok() {
                     let _ = stdout.flush().await;
                 }
+
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         });
-
+        //=================get whitelist============================
         let white_list: Vec<String> = fs::read_to_string("white_list.txt")
             .expect("[Error]File white list doesn't exist!")
             .lines()
             .map(|s| s.trim().to_lowercase())
             .filter(|s| !s.is_empty() && !s.starts_with('#'))
             .collect();
-
+        //===============main===============
         loop {
+            // Clean our "pending" 
             if last_clean.elapsed() >= Duration::from_secs(10) {
                 pending.retain(| _, (created_at, _)| created_at.elapsed() < Duration::from_secs(10));
                 last_clean = Instant::now();
@@ -104,55 +107,60 @@
                                     send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload).await?;
                                 } 
                             }else {
-                            pending.insert(start_seq, (Instant::now(), data));
+                                pending.insert(start_seq, (Instant::now(), data));
+                            }
+
+                            msg.set_verdict(Verdict::Drop);
+                            queue.verdict(msg)?;
+                            continue;
+                            }
                         }
+
+                        if tcp_payload.len() >= 5 
+                            && tcp_payload[0] == 0x16 
+                            && tcp_payload[1] == 0x03
+                            && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
+                        {  
+                        
+                            if let Some((pos, domain)) = find_sni(tcp_payload) {
+                                let split_tunneling = is_domain_in_white_list(&domain, &white_list);
+                                if split_tunneling && split_tunneling_bool{
+                                    let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                    let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                    let ack = tcp_packet.get_acknowledgement();
+
+                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                                }else if split_tunneling_bool && is_domain_rus(&domain){
+                                    msg.set_verdict(Verdict::Accept);
+                                    queue.verdict(msg)?;
+                                    continue;
+                                }else if split_tunneling_bool ==  false {
+                                    let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                    let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                    let ack = tcp_packet.get_acknowledgement();
+
+                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                                } else {
+                                    msg.set_verdict(Verdict::Accept);
+                                    queue.verdict(msg)?;
+                                    continue;
+                                }
+                            
+                            }else {
+                                pending.insert(sequence, (Instant::now(), tcp_payload.to_vec()));
+                            }
+
                             msg.set_verdict(Verdict::Drop);
                             queue.verdict(msg)?;
                             continue;
                         }
-                    }
-
-                    if tcp_payload.len() >= 5 
-                        && tcp_payload[0] == 0x16 
-                        && tcp_payload[1] == 0x03
-                        && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
-                    {  
-                        
-                        if let Some((pos, domain)) = find_sni(tcp_payload) {
-                            let split_tunneling = is_domain_in_white_list(&domain, &white_list);
-                            if split_tunneling && split_tunneling_bool{
-                                let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
-                                let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
-                                let ack = tcp_packet.get_acknowledgement();
-
-                                send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
-                            }else if split_tunneling_bool && is_domain_rus(&domain){
-                                msg.set_verdict(Verdict::Accept);
-                                queue.verdict(msg)?;
-                                continue;
-                            }else if split_tunneling_bool ==  false {
-                                let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
-                                let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
-                                let ack = tcp_packet.get_acknowledgement();
-
-                                send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
-                            } else {
-                                msg.set_verdict(Verdict::Accept);
-                                queue.verdict(msg)?;
-                                continue;
-                            }
-                            
-                        }else {
-                            pending.insert(sequence, (Instant::now(), tcp_payload.to_vec()));
-                        }
-
-                        msg.set_verdict(Verdict::Drop);
-                        queue.verdict(msg)?;
-                        continue;
-                    }
                     msg.set_verdict(Verdict::Accept);
                     queue.verdict(msg)?;
                 }
             }
         }
+    }
+#[cfg(target_os = "windows")]
+    pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+
     }
