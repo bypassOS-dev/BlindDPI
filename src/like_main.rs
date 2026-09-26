@@ -2,6 +2,7 @@ use std::{collections::HashMap, fs, net::SocketAddrV4, u8};
 use nfq::{Queue, Verdict};
 use tokio::io as tokio_io; 
 use tokio::io::AsyncWriteExt;
+use windivert::WinDivert;
 use std::time::{Duration, Instant};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
 //==============================================================
@@ -159,8 +160,4 @@ use get_domain::is_domain_rus;
                 }
             }
         }
-    }
-#[cfg(target_os = "windows")]
-    pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-
     }
