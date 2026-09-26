@@ -19,7 +19,7 @@ use get_domain::is_domain_rus;
 //===================================================
 
     pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    
+        
         run_iptables().await;
 
         let mut queue = Queue::open()?;
