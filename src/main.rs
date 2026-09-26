@@ -16,6 +16,8 @@ use windows::like_main as backend;
 //========
 //==========GENERAL==============
 use std::io;
+mod helper_functions;
+pub mod send_packet;
 //===============================
 #[tokio::main]
 async fn main() {
