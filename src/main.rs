@@ -1,8 +1,22 @@
-mod like_main;
+//=========LINUX=================
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux::like_main as backend;
+#[cfg(target_os = "linux")]
 mod send_packet;
-
-use like_main::like_main;
-
+//===============================
+//========
+//==========WINDOWS==============
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "windows")]
+use windows::like_main as backend;
+//===============================
+//========
+//==========GENERAL==============
+use std::io;
+//===============================
 #[tokio::main]
 async fn main() {
     let split_tunneling_bool:bool;
@@ -11,7 +25,7 @@ async fn main() {
     //===============Split tunneling=======================
     println!("Enable split tunneling? (yes/no)  ");
     let mut split_tunneling = String::new();
-    std::io::stdin()
+    io::stdin()
         .read_line(&mut split_tunneling)
         .expect("[Error! line ~14]Sorry, read error");
     let split_tunneling = split_tunneling.trim();
@@ -24,15 +38,16 @@ async fn main() {
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(like_main(split_tunneling_bool)).ok();
+        rt.block_on(backend(split_tunneling_bool)).ok();
     });
 
     tokio::signal::ctrl_c().await.unwrap();
-
+    #[cfg(target_os = "linux")]
+    {
     println!("\nOk... make clean the iptables...");
-    like_main::iptables::remove_iptables().await;
+    linux::iptables::remove_iptables().await;
     std::process::exit(0);
-
+    }
 }
 
     

@@ -5,7 +5,12 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
+rand = "0.8.0"
 pnet = "0.35"
+
+[target.'cfg(target_os = "linux")'.dependencies]
 pnet_transport = "0.35"
 nfq = "0.2.5"
-rand = "0.8.0"
+
+[target.'cfg(windows)'.dependencies]
+windivert = { version = "0.6", features = ["vendored"] }
