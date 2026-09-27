@@ -1,9 +1,30 @@
+//========GENERAL============
 use rand::seq::SliceRandom;
 use std::net::SocketAddrV4;
 use rand::Rng;
-
+//============================
+//========
+//========LINUX===============
+#[cfg(target_os = "linux")]
 use crate::send_packet::send_packet;
+//============================
+//========
+//========WINDOWS=============
+#[cfg(target_os = "windows")]
+use windivert::{WinDivert, address::WinDivertAddress};
+#[cfg(target_os = "windows")]
+use pnet::packet::{
+    ip::IpNextHeaderProtocols,
+    ipv4::{MutableIpv4Packet, checksum},
+    tcp::{MutableTcpPacket, TcpFlags, ipv4_checksum},
+};
+//============================
 
+
+
+
+//======MAIN FUNCTION FOR LINUX==============================================================
+#[cfg(target_os = "linux")]
 pub async fn send_fake_packets(
     pos: usize,     
     _domain: &str, 
@@ -57,7 +78,7 @@ pub async fn send_fake_packets(
 
     Ok(())
 }
-
+#[cfg(target_os = "linux")]
 fn split_payload(payload: &[u8], base_seq: u32, out: &mut Vec<(Vec<u8>, u32)>) {
     let len = payload.len();
     if len == 0 {
@@ -86,4 +107,22 @@ fn split_payload(payload: &[u8], base_seq: u32, out: &mut Vec<(Vec<u8>, u32)>) {
         out.push((payload[sum..end].to_vec(), base_seq + sum as u32));
         sum = end; 
     }
+}
+
+
+
+
+
+//================MAIN FUNCTION FOR WINDOWS========================================
+#[cfg(target_os = "windows")]
+pub async fn send_fake_packets(
+    pos: usize,     
+    _domain: &str, 
+    start_seq: u32, 
+    data: &[u8], 
+    my_ip: SocketAddrV4,
+    server_ip: SocketAddrV4,
+    ack: u32,    
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    Ok(())
 }
