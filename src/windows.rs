@@ -1,0 +1,137 @@
+use std::{collections::HashMap, fs, net::SocketAddrV4, u8};
+use std::time::{Instant, Duration};
+use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
+use windivert::WinDivert;
+use tokio::io as tokio_io;
+use tokio::io::AsyncWriteExt;
+use crate::helper_functions::{find_sni::find_sni, send_fake_packets::send_fake_packets, get_domain::{is_domain_in_white_list, is_domain_rus}};
+use crate::send_packet::send_packet;
+
+pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let filter = "outbound and ip and tcp.DstPort == 443";
+    let driver = WinDivert::network(filter, 0, Default::default())?;
+
+    let mut buffer = vec![0u8; 65535];
+
+    let mut pending: HashMap<u32, (Instant, Vec<u8>)> = HashMap::new();
+    let mut last_clean = Instant::now();
+
+    let white_list: Vec<String> = fs::read_to_string("white_list.txt")
+            .expect("[Error]File white list doesn't exist!")
+            .lines()
+            .map(|s| s.trim().to_lowercase())
+            .filter(|s| !s.is_empty() && !s.starts_with('#'))
+            .collect();
+
+    tokio::spawn(async {
+        let time = Instant::now();
+        let mut stdout = tokio_io::stdout(); 
+        loop {
+            let total_secs = time.elapsed().as_secs();
+
+            let hours = total_secs / 3600;
+            let minutes = (total_secs % 3600) / 60;
+            let seconds = total_secs % 60;
+
+            let msg = format!(
+                "\r\x1b[2KBlindDPI is working ({:02}:{:02}:{:02}sec)",
+                hours, minutes, seconds
+            );
+
+
+            if stdout.write_all(msg.as_bytes()).await.is_ok() {
+                let _ = stdout.flush().await;
+            }
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    });
+
+    loop {
+        if last_clean.elapsed() >= Duration::from_secs(10) {
+                pending.retain(| _, (created_at, _)| created_at.elapsed() < Duration::from_secs(10));
+                last_clean = Instant::now();
+        }
+        
+        let packet = driver.recv(Some(&mut buffer))?;
+
+        if let Some(ipv4_packet) = Ipv4Packet::new(&packet.data) {
+            if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
+                let sequence = tcp_packet.get_sequence();
+                let tcp_payload = tcp_packet.payload();
+
+                let mut matched_start_seq: Option<u32> = None;
+
+                for (&strat_seq, (_, data)) in pending.iter() {
+                    let expected_seq = strat_seq.wrapping_add(data.len() as u32);
+                    if expected_seq == sequence {
+                        matched_start_seq = Some(strat_seq);
+                        break;
+                    }
+                }
+
+                if let Some(start_seq) = matched_start_seq {
+                    if let Some((_, mut data)) = pending.remove(&start_seq){
+                        data.extend_from_slice(tcp_payload);
+                        if let Some((pos, domain)) = find_sni(&data) {
+                            let domain_in_white_list = is_domain_in_white_list(&domain, &white_list);
+                            if domain_in_white_list && split_tunneling_bool || !split_tunneling_bool{
+                                let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                let ack = tcp_packet.get_acknowledgement();
+
+                                send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack, &driver, &packet.address).await?;
+                            } else {
+                                let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                let ack = tcp_packet.get_acknowledgement();
+
+                                    let p1_len  = data.len() - tcp_payload.len();
+                                    let p1_payload = &data[..p1_len];
+                                    let p2_payload = &data[p1_len..];
+                                    send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload, &driver, &packet.address).await?;
+                                    send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload, &driver, &packet.address).await?;
+                                } 
+                            }else {
+                                pending.insert(start_seq, (Instant::now(), data));
+                            }
+
+                            continue;
+                            }
+                        }
+
+                        if tcp_payload.len() >= 5 
+                            && tcp_payload[0] == 0x16 
+                            && tcp_payload[1] == 0x03
+                            && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
+                        {  
+                        
+                            if let Some((pos, domain)) = find_sni(tcp_payload) {
+                                let split_tunneling = is_domain_in_white_list(&domain, &white_list);
+                                if split_tunneling && split_tunneling_bool{
+                                    let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                    let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                    let ack = tcp_packet.get_acknowledgement();
+
+                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack, &driver, &packet.address).await?;
+                                }else if split_tunneling_bool && is_domain_rus(&domain){
+                                    
+                                }else if split_tunneling_bool ==  false {
+                                    let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
+                                    let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
+                                    let ack = tcp_packet.get_acknowledgement();
+
+                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack, &driver, &packet.address).await?;
+                                } else {
+                                    continue;
+                                }
+                            
+                            }else {
+                                pending.insert(sequence, (Instant::now(), tcp_payload.to_vec()));
+                            }
+                            continue;
+                        }
+            }
+        }
+    }   
+}
