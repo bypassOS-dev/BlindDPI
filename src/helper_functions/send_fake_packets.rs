@@ -101,7 +101,7 @@ pub async fn send_fake_packets(
     server_ip: SocketAddrV4,
     ack: u32,    
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let another_packets = prepare_fake_packets(pos, domain, start_seq, data, my_ip, server_ip, ack);
+    let another_packets = prepare_fake_packets(pos, domain, start_seq, data).await;
 
     for (payload, seq) in another_packets {
         send_packet(my_ip, server_ip, seq, ack, 64, &payload).await?;

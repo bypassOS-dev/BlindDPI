@@ -3,8 +3,6 @@
 mod linux;
 #[cfg(target_os = "linux")]
 use linux::like_main as backend;
-#[cfg(target_os = "linux")]
-mod send_packet;
 //===============================
 //========
 //==========WINDOWS==============
@@ -15,13 +13,26 @@ use windows::like_main as backend;
 //===============================
 //========
 //==========GENERAL==============
-use std::io;
+use std::{io, process::Command};
 mod helper_functions;
 pub mod send_packet;
 //===============================
 #[tokio::main]
 async fn main() {
     let split_tunneling_bool:bool;
+    #[cfg(target_os = "linux")]
+    let script = include_str!("check_iptables.sh");
+    #[cfg(target_os = "linux")]
+    let status = Command::new("bash")
+        .arg(script)
+        .status()
+        .expect("[FATAL ERROR] bash script crashed!");
+
+    #[cfg(target_os = "linux")]
+    if !status.success() {
+        eprintln!("Script was ended with error(Code: {:?}). Stop. ", status.code());
+        std::process::exit(1);
+    }
     
     println!("Please wait for a launch...");
     //===============Split tunneling=======================
@@ -51,6 +62,3 @@ async fn main() {
     std::process::exit(0);
     }
 }
-
-    
-    

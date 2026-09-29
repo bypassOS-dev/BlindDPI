@@ -5,13 +5,13 @@ use tokio::io::AsyncWriteExt;
 use std::time::{Duration, Instant};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
 //==============================================================
-mod find_sni;
-pub mod iptables;
-mod get_domain;
-mod send_fake_packets;
+use crate::helper_functions::find_sni;
+use crate::helper_functions::get_domain;
+use crate::helper_functions::send_fake_packets;
 //===========================================================
 use send_fake_packets::send_fake_packets;
-use iptables::run_iptables;
+pub mod iptables;
+use self::iptables::run_iptables;
 use crate::send_packet::send_packet;
 use find_sni::find_sni;
 use get_domain::is_domain_in_white_list;
