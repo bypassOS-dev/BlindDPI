@@ -130,7 +130,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                 pending.insert(sequence, (Instant::now(), tcp_payload.to_vec()));
                             }
                             continue;
-                        }
+                }
             }
         }
     }   
