@@ -8,7 +8,7 @@ The tool analyzes incoming/outgoing traffic, extracts Server Name Indication (SN
 
 * **OS:** Linux (Kernel $\ge 5.0$)
 * **Dependencies:**
-* `iptables`
+* `nftables`
 * `libnetfilter_queue` (Debian/Ubuntu: `sudo apt install libnetfilter-queue-dev build-essential`)
 
 
@@ -62,7 +62,7 @@ To stop the program, press **`Ctrl+C`**. BlindDPI will automatically flush the a
 > [!IMPORTANT]
 > But if something went wrong use this command:
 > ```bash
-> sudo iptables -D OUTPUT -p tcp --dport 443 -j NFQUEUE --queue-num 0
+> sudo nft delete table inet blind_dpi
 > ```
 ---
 
