@@ -1,6 +1,6 @@
 //========GENERAL=============
 use rand::seq::SliceRandom;
-use std::net::SocketAddrV4;
+use std::net::SocketAddr;
 use rand::Rng;
 //============================
 //========LINUX===============
@@ -97,8 +97,8 @@ pub async fn send_fake_packets(
     domain: &str, 
     start_seq: u32, 
     data: &[u8], 
-    my_ip: SocketAddrV4,
-    server_ip: SocketAddrV4,
+    my_ip: SocketAddr,
+    server_ip: SocketAddr,
     ack: u32,    
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let another_packets = prepare_fake_packets(pos, domain, start_seq, data).await;
@@ -118,8 +118,8 @@ pub async fn send_fake_packets(
     domain: &str, 
     start_seq: u32, 
     data: &[u8], 
-    my_ip: SocketAddrV4,
-    server_ip: SocketAddrV4,
+    my_ip: SocketAddr,
+    server_ip: SocketAddr,
     ack: u32,
     driver: &WinDivert<layer::NetworkLayer>,
     address: &WinDivertAddress<layer::NetworkLayer>

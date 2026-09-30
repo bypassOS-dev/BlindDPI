@@ -24,6 +24,7 @@ async fn main() {
     let script = include_str!("check_iptables.sh");
     #[cfg(target_os = "linux")]
     let status = Command::new("bash")
+        .arg("-c")
         .arg(script)
         .status()
         .expect("[FATAL ERROR] bash script crashed!");
@@ -33,14 +34,12 @@ async fn main() {
         eprintln!("Script was ended with error(Code: {:?}). Stop. ", status.code());
         std::process::exit(1);
     }
-    
-    println!("Please wait for a launch...");
     //===============Split tunneling=======================
     println!("Enable split tunneling? (yes/no)  ");
     let mut split_tunneling = String::new();
     io::stdin()
         .read_line(&mut split_tunneling)
-        .expect("[Error! line ~14]Sorry, read error");
+        .expect("[Error]Read error");
     let split_tunneling = split_tunneling.trim();
 
     if split_tunneling == "yes" || split_tunneling == "y"   {
