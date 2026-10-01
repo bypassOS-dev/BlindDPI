@@ -3,6 +3,8 @@
 mod linux;
 #[cfg(target_os = "linux")]
 use linux::like_main as backend;
+#[cfg(target_os = "linux")]
+use linux::iptables::run_iptables;
 //===============================
 //========
 //==========WINDOWS==============
@@ -34,6 +36,8 @@ async fn main() {
         eprintln!("Script was ended with error(Code: {:?}). Stop. ", status.code());
         std::process::exit(1);
     }
+
+    run_iptables().await;
     //===============Split tunneling=======================
     println!("Enable split tunneling? (yes/no)  ");
     let mut split_tunneling = String::new();
