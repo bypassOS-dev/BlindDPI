@@ -1,11 +1,10 @@
 //================for linux========================
 #[cfg(target_os = "linux")]
 use pnet::packet::{
-    Packet, ip::{IpNextHeaderProtocols}, ipv4::{self, MutableIpv4Packet}, tcp::{self, MutableTcpPacket, TcpFlags},
+    Packet, ip::{IpNextHeaderProtocols}, ipv4::{self, MutableIpv4Packet}, ipv6::MutableIpv6Packet, tcp::{self, MutableTcpPacket, TcpFlags},
 };
 #[cfg(target_os = "linux")]
 use pnet_transport::{TransportChannelType::Layer3, transport_channel};
-use rand::random;
 //=================for windows=====================
 #[cfg(target_os = "windows")]
 use windivert::{address::WinDivertAddress, layer, packet::WinDivertPacket};
@@ -16,7 +15,7 @@ use pnet::packet::{
     Packet, icmp::IcmpTypes::AddressMaskReply, ip::IpNextHeaderProtocols, ipv4::{self, MutableIpv4Packet}, tcp::{self, MutableTcpPacket, TcpFlags},
 };
 //==================general========================
-use std::net::{SocketAddr,Ipv4Addr, IpAddr};
+use std::net::{SocketAddr,Ipv4Addr, Ipv6Addr, IpAddr};
 
 pub async fn send_packet(
     my_ip: SocketAddr,
@@ -135,10 +134,11 @@ fn assemble_packet_v4(
 // Ipv6
 //
 //=====================================================================
-fn _assemble_packet_v6(my_ip: SocketAddr,
+fn _assemble_packet_v6(
+    my_ip: SocketAddr,
     server_ip: SocketAddr,
-    src_v4: Ipv4Addr,
-    dst_v4: Ipv4Addr,
+    src_v6: Ipv6Addr,
+    dst_v6: Ipv6Addr,
     seq: u32,
     ack: u32,
     ttl: u8,
@@ -162,5 +162,34 @@ fn _assemble_packet_v6(my_ip: SocketAddr,
     tcp_packet.set_window(64240);
     tcp_packet.set_data_offset(5);
     tcp_packet.set_payload(random_text);
+
+    let tcp_checksum = tcp::ipv6_checksum(&tcp_packet.to_immutable(), &src_v6, &dst_v6);
+    tcp_packet.set_checksum(tcp_checksum);
+
+
+    let ipv6_len = 40 + tcp_len;
+    let mut ipv6_buf = vec![0u8;ipv6_len];
+    let mut ipv6_packet = MutableIpv6Packet::new(&mut ipv6_buf)
+        .ok_or("Failed to create IPv6 packet buffer")?;
+
+    ipv6_packet.set_version(6);
+    ipv6_packet.set_traffic_class(0);
+    ipv6_packet.set_flow_label(0);
+    ipv6_packet.set_payload_length(tcp_len as u16);
+    ipv6_packet.set_next_header(IpNextHeaderProtocols::Tcp);
+    ipv6_packet.set_hop_limit(ttl);
+    ipv6_packet.set_source(src_v6);
+    ipv6_packet.set_destination(dst_v6);
+    ipv6_packet.set_payload(tcp_packet.packet());
+
+    #[cfg(target_os = "linux")]
+    tx.send_to(ipv6_packet, std::net::IpAddr::V6(dst_v6))?;
+
+    #[cfg(target_os = "windows")]
+    let packet = WinDivertPacket {
+        data: ip_buf.into(),
+        address: address.clone(),
+    };
+
     Ok(())
 }
