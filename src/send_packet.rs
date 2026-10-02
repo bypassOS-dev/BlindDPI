@@ -1,9 +1,5 @@
 //================for linux========================
 #[cfg(target_os = "linux")]
-use pnet::packet::{
-    Packet, ip::{IpNextHeaderProtocols}, ipv4::{self, MutableIpv4Packet}, ipv6::MutableIpv6Packet, tcp::{self, MutableTcpPacket, TcpFlags},
-};
-#[cfg(target_os = "linux")]
 use pnet_transport::{TransportChannelType::Layer3, transport_channel};
 //=================for windows=====================
 #[cfg(target_os = "windows")]
@@ -16,6 +12,9 @@ use pnet::packet::{
 };
 //==================general========================
 use std::net::{SocketAddr,Ipv4Addr, Ipv6Addr, IpAddr};
+use pnet::packet::{
+    Packet, ip::{IpNextHeaderProtocols}, ipv4::{self, MutableIpv4Packet}, ipv6::MutableIpv6Packet, tcp::{self, MutableTcpPacket, TcpFlags},
+};
 
 pub async fn send_packet(
     my_ip: SocketAddr,
@@ -44,7 +43,20 @@ pub async fn send_packet(
             #[cfg(target_os = "windows")]
             address
         )?,
-        (IpAddr::V6(_src_v4), IpAddr::V6(_dst_v6)) => return Ok(()),
+        (IpAddr::V6(src_v6), IpAddr::V6(dst_v6)) => assemble_packet_v6(
+            my_ip, 
+            server_ip, 
+            src_v6, 
+            dst_v6, 
+            seq, 
+            ack, 
+            ttl, 
+            random_text,
+            #[cfg(target_os = "windows")]
+            driver,
+            #[cfg(target_os = "windows")]
+            address
+        )?,
         _ => return Ok(()),
     }
     
@@ -134,7 +146,7 @@ fn assemble_packet_v4(
 // Ipv6
 //
 //=====================================================================
-fn _assemble_packet_v6(
+fn assemble_packet_v6(
     my_ip: SocketAddr,
     server_ip: SocketAddr,
     src_v6: Ipv6Addr,
@@ -187,9 +199,11 @@ fn _assemble_packet_v6(
 
     #[cfg(target_os = "windows")]
     let packet = WinDivertPacket {
-        data: ip_buf.into(),
+        data: ipv6_buf.into(),
         address: address.clone(),
     };
+    #[cfg(target_os = "windows")]
+    driver.send(&packet)?;
 
     Ok(())
 }
