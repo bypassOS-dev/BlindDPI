@@ -6,22 +6,31 @@ use linux::like_main as backend;
 #[cfg(target_os = "linux")]
 use linux::iptables::run_iptables;
 //===============================
-//========
 //==========WINDOWS==============
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]
 use windows::like_main as backend;
 //===============================
-//========
+//===========ANDROID=============
+#[cfg(target_os = "android")]
+mod android;
+#[cfg(target_os = "android")]
+use android::like_main as backend;
+//===============================
 //==========GENERAL==============
 use std::{io, process::Command};
 mod helper_functions;
 pub mod send_packet;
 //===============================
+
+
+
 #[tokio::main]
 async fn main() {
-    let split_tunneling_bool:bool;
+    #[cfg(target_os = "android")]
+    println!("Your OS isn't support yet. Sorry.");
+
     #[cfg(target_os = "linux")]
     let script = include_str!("check_iptables.sh");
     #[cfg(target_os = "linux")]
@@ -39,6 +48,8 @@ async fn main() {
 
     run_iptables().await;
     //===============Split tunneling=======================
+    let split_tunneling_bool:bool;
+
     println!("Enable split tunneling? (yes/no)  ");
     let mut split_tunneling = String::new();
     io::stdin()
