@@ -46,6 +46,7 @@ async fn main() {
         std::process::exit(1);
     }
 
+    #[cfg(target_os = "linux")]
     run_iptables().await;
     //===============Split tunneling=======================
     let split_tunneling_bool:bool;
@@ -65,7 +66,7 @@ async fn main() {
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(backend(split_tunneling_bool)).ok();
+        rt.block_on(backend(split_tunneling_bool, 123123 as i32)).ok();
     });
 
     tokio::signal::ctrl_c().await.unwrap();
