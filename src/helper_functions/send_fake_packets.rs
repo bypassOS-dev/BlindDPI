@@ -2,16 +2,11 @@
 use rand::seq::SliceRandom;
 use std::net::SocketAddr;
 use rand::Rng;
-//============================
-//========LINUX===============
-#[cfg(target_os = "linux")]
 use crate::send_packet::send_packet;
 //============================
 //========WINDOWS=============
 #[cfg(target_os = "windows")]
 use windivert::{WinDivert, address::WinDivertAddress, layer};
-#[cfg(target_os = "windows")]
-use crate::send_packet::send_packet;
 //======MAIN FUNCTION FOR EVERYTHINK==============================================================
 fn split_payload(payload: &[u8], base_seq: u32, out: &mut Vec<(Vec<u8>, u32)>) {
     let len = payload.len();
@@ -88,31 +83,7 @@ pub async fn prepare_fake_packets(
     another_packets.shuffle(&mut rand::thread_rng());
     another_packets
 }
-//====================================
-//=========FOR LINUX===========================================
-//====================================
-#[cfg(target_os = "linux")]
-pub async fn send_fake_packets(
-    pos: usize,     
-    domain: &str, 
-    start_seq: u32, 
-    data: &[u8], 
-    my_ip: SocketAddr,
-    server_ip: SocketAddr,
-    ack: u32,    
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let another_packets = prepare_fake_packets(pos, domain, start_seq, data).await;
 
-    for (payload, seq) in another_packets {
-        send_packet(my_ip, server_ip, seq, ack, 64, &payload).await?;
-    }
-
-    Ok(())
-}
-
-
-//================FOR WINDOWS========================================
-#[cfg(target_os = "windows")]
 pub async fn send_fake_packets(
     pos: usize,     
     domain: &str, 
@@ -121,13 +92,26 @@ pub async fn send_fake_packets(
     my_ip: SocketAddr,
     server_ip: SocketAddr,
     ack: u32,
+    #[cfg(target_os = "windows")]
     driver: &WinDivert<layer::NetworkLayer>,
+    #[cfg(target_os = "windows")]
     address: &WinDivertAddress<layer::NetworkLayer>
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let another_packets = prepare_fake_packets(pos, domain, start_seq, data).await;
 
     for (payload, seq) in another_packets {
-        send_packet(my_ip, server_ip, seq, ack, 64, &payload, &driver, address).await?;
+        send_packet(
+            my_ip, 
+            server_ip, 
+            seq, 
+            ack, 
+            64, 
+            &payload, 
+            #[cfg(target_os = "windows")]
+            &driver, 
+            #[cfg(target_os = "windows")]
+            address
+        ).await?;
     }
     Ok(())
 }
