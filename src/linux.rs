@@ -52,7 +52,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
         }
     });
     //=================get whitelist============================
-    let white_list: Vec<String> = fs::read_to_string("white_list.txt")
+    let white_list: Vec<String> = fs::read_to_string("")
         .expect("[Error]File white list doesn't exist!")
         .lines()
         .map(|s| s.trim().to_lowercase())

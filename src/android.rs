@@ -30,7 +30,8 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
     loop {
         if last_clean.elapsed() >= Duration::from_secs(10) {
             pending.retain(|_, (created_in, _)| created_in.elapsed() < Duration::from_secs(10));
-        }   last_clean = Instant::now();
+            last_clean = Instant::now();
+        }
         let n = tun.read(&mut buffer).await?;
         if n == 0 {
             break;
@@ -82,30 +83,103 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
                             } else {
                                 pending.insert(start_sequence, (Instant::now(), data));
                             }
+                            if tcp_payload.len() >= 5 
+                                && tcp_payload[0] == 0x16 
+                                && tcp_payload[1] == 0x03
+                                && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
+                            {
+                                if let Some((pos, domain)) = find_sni(tcp_payload) {
+                                    let split_tunneling = is_domain_in_white_list(&domain, &white_list);
+                                    if split_tunneling && split_tunneling_bool || !split_tunneling_bool{
+                                        let my_ip = SocketAddr::new(ipv4_packet.get_source().into(), tcp_packet.get_source());
+                                        let server_ip = SocketAddr::new(ipv4_packet.get_destination().into(), tcp_packet.get_destination());
+                                        let ack = tcp_packet.get_acknowledgement();
+
+                                        send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                                    } else {
+                                        todo!()
+                                    }
+                                } else {
+                                    todo!()
+                                }
+                                todo!()
+
+                            }
                         }
                     }
+                    todo!()
                 }
-            }
         } else {
             if let Some(ipv6_packet) = Ipv6Packet::new(packet) {
                 if let Some(tcp_packet) = TcpPacket::new(ipv6_packet.payload()) {
                     let sequence = tcp_packet.get_sequence();
                     let tcp_payload = tcp_packet.payload();
                     let mut matched_start_seq: Option<u32> = None;
-                    for (&start_seq, (_, data)) in pending.iter() {
-                        let expected_seq = start_seq.wrapping_add(data.len() as u32);
+
+                    for (&seq, (_, data)) in pending.iter() {
+                        let expected_seq = seq.wrapping_add(data.len() as u32);
                         if expected_seq == sequence {
-                            matched_start_seq = Some(start_seq);
+                            matched_start_seq = Some(seq);
                             break;
                         }
                     }
-                    if let Some(start_seq) = matched_start_seq {
 
+                    if let Some(start_sequence) = matched_start_seq {
+                        if let Some((_, mut data)) = pending.remove(&start_sequence) {
+                            data.extend_from_slice(tcp_payload);
+
+                            if let Some((pos, domain)) = find_sni(&data) {
+                                let domain_in_white_list = is_domain_in_white_list(&domain, &white_list);
+
+                                if domain_in_white_list && split_tunneling_bool ||  !split_tunneling_bool {
+                                    let my_ip = SocketAddr::new(ipv6_packet.get_source().into(), tcp_packet.get_source());
+                                    let server_ip = SocketAddr::new(ipv6_packet.get_destination().into(), tcp_packet.get_destination());
+                                    let ack = tcp_packet.get_acknowledgement();
+
+                                    send_fake_packets(pos, &domain, start_sequence, &data, my_ip, server_ip, ack).await?;
+                                } else {
+                                    let my_ip = SocketAddr::new(ipv6_packet.get_source().into(), tcp_packet.get_source());
+                                    let server_ip = SocketAddr::new(ipv6_packet.get_destination().into(), tcp_packet.get_destination());
+                                    let ack = tcp_packet.get_acknowledgement();
+
+                                    let p1_len = data.len() - tcp_payload.len();
+                                    let p1_payload = &data[..p1_len];
+                                    let p2_payload = &data[p1_len..];
+
+                                    send_packet(my_ip, server_ip, start_sequence, ack, 64, p1_payload).await?;
+                                    send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload).await?;
+                                }
+                            } else {
+                                pending.insert(start_sequence, (Instant::now(), data));
+                            }
+                            if tcp_payload.len() >= 5 
+                                && tcp_payload[0] == 0x16 
+                                && tcp_payload[1] == 0x03
+                                && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
+                            {
+                                if let Some((pos, domain)) = find_sni(tcp_payload) {
+                                    let split_tunneling = is_domain_in_white_list(&domain, &white_list);
+                                    if split_tunneling && split_tunneling_bool ||  !split_tunneling_bool {
+                                        let my_ip = SocketAddr::new(ipv6_packet.get_source().into(), tcp_packet.get_source());
+                                        let server_ip = SocketAddr::new(ipv6_packet.get_destination().into(), tcp_packet.get_destination());
+                                        let ack = tcp_packet.get_acknowledgement();
+                                        send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                                    }else {
+                                        todo!()
+                                    }
+                                } else {
+                                    todo!()
+                                }
+                                todo!()
+
+                                }
+                            }
+                        }
+                        todo!()
                     }
                 }
             }
         }
     }
-
     Ok(())
 }
