@@ -89,7 +89,19 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
         } else {
             if let Some(ipv6_packet) = Ipv6Packet::new(packet) {
                 if let Some(tcp_packet) = TcpPacket::new(ipv6_packet.payload()) {
+                    let sequence = tcp_packet.get_sequence();
+                    let tcp_payload = tcp_packet.payload();
+                    let mut matched_start_seq: Option<u32> = None;
+                    for (&start_seq, (_, data)) in pending.iter() {
+                        let expected_seq = start_seq.wrapping_add(data.len() as u32);
+                        if expected_seq == sequence {
+                            matched_start_seq = Some(start_seq);
+                            break;
+                        }
+                    }
+                    if let Some(start_seq) = matched_start_seq {
 
+                    }
                 }
             }
         }
