@@ -19,18 +19,19 @@ use get_domain::is_domain_rus;
 //===================================================
 
 pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        
-    run_iptables().await;
-
     let mut queue = Queue::open()?;
     queue.bind(0)?;
 
+    // Pending is need for packets 
+    // that was splite on your PC 
     let mut pending: HashMap<u32, (Instant, Vec<u8>)> = HashMap::new();
     let mut last_clean = Instant::now();
     //=====================Time counter=========================
+    //================Just beautifull output====================
     tokio::spawn(async {
         let time = Instant::now();
         let mut stdout = tokio_io::stdout(); 
+        //
         loop {
             let total_secs = time.elapsed().as_secs();
 
@@ -51,7 +52,8 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
-    //=================get whitelist============================
+    
+    //==============checking for witelist=======================
     let white_list: Vec<String> = fs::read_to_string("")
         .expect("[Error]File white list doesn't exist!")
         .lines()
@@ -60,7 +62,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
         .collect();
     //===============main===============
     loop {
-        // Clean our "pending" 
+        // Every 10 secs will crean our "pending"
         if last_clean.elapsed() >= Duration::from_secs(10) {
             pending.retain(| _, (created_at, _)| created_at.elapsed() < Duration::from_secs(10));
             last_clean = Instant::now();
@@ -68,11 +70,14 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
         let mut msg = queue.recv()?;
         let payload = msg.get_payload();
         
+        // ================ Try to parsing to Ipv4 ===============
         if let Some(ipv4_packet) = Ipv4Packet::new(payload) {
+            // ========= If this packet is Ipv4 then get Tcp-packet inside Ipv4 packet ==========
             if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
                 let sequence = tcp_packet.get_sequence();
                 let tcp_payload = tcp_packet.payload();
                 let mut matched_start_seq: Option<u32> = None;
+                //============= Check: It's new packet or old and partial packet? ===============
                 for (&strat_seq, (_, data)) in pending.iter() {
                     let expected_seq = strat_seq.wrapping_add(data.len() as u32);
                     if expected_seq == sequence {
@@ -80,9 +85,15 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                         break;
                     }
                 }
+
+                // If this packet old and partial then...
                 if let Some(start_seq) = matched_start_seq {
+                    // We to get hold of data:
                     if let Some((_, mut data)) = pending.remove(&start_seq){
+                        // And just to glue 2 piece to one!
                         data.extend_from_slice(tcp_payload);
+
+                        // Find sni:
                         if let Some((pos, domain)) = find_sni(&data) {
                             let domain_in_white_list = is_domain_in_white_list(&domain, &white_list);
                             if domain_in_white_list && split_tunneling_bool || !split_tunneling_bool{
@@ -102,6 +113,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                 send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload).await?;
                                 send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload).await?;
                             } 
+                        // If sni don't found then add to our storage
                         }else {
                             pending.insert(start_seq, (Instant::now(), data));
                         }
@@ -110,6 +122,8 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                         continue;
                         }
                     }
+
+                    // But if this packet isn't partial ==> check: Is it TSL-handshake?
                     if tcp_payload.len() >= 5 
                         && tcp_payload[0] == 0x16 
                         && tcp_payload[1] == 0x03
@@ -145,6 +159,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                         queue.verdict(msg)?;
                         continue;
                     }
+                    // If it's not piece of packet or tls-handshake ==> We don't care!
                 msg.set_verdict(Verdict::Accept);
                 queue.verdict(msg)?;
             }
