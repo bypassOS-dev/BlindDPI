@@ -22,6 +22,7 @@ pub mod send_packet;
 
 #[tokio::main]
 async fn main() {
+    // Run bash script which checking for necessary utils
     #[cfg(target_os = "linux")]
     let script = include_str!("check_iptables.sh");
     #[cfg(target_os = "linux")]
@@ -37,8 +38,11 @@ async fn main() {
         std::process::exit(1);
     }
 
+    // If check was succassfully then run
+    // somee stuff for sniffing packets:
     #[cfg(target_os = "linux")]
     run_iptables().await;
+
     //===============Split tunneling=======================
     let split_tunneling_bool:bool;
 
@@ -55,13 +59,14 @@ async fn main() {
         split_tunneling_bool = false;
     }
     //====================================================
+    //Run main function in another OS-stream
     #[cfg(not(target_os = "android"))]
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(backend(split_tunneling_bool)).ok();
     });
     //=====================================================
-
+    // If user press ctrl+c then clean all nft-rule (if OS isn't linux then just close programm)
     tokio::signal::ctrl_c().await.unwrap();
     #[cfg(target_os = "linux")]
     {

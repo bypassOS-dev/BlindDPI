@@ -5,7 +5,7 @@ use crate::helper_functions::send_fake_packets::send_fake_packets;
 use tokio::{io::AsyncReadExt, time::Instant};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, ipv6::Ipv6Packet, tcp::TcpPacket};
 use std::collections::HashMap;
-use std::fs;
+//use std::fs;
 use std::net::SocketAddr;
 use std::os::fd::FromRawFd;
 use std::time::Duration;
@@ -26,8 +26,7 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
 
     let white_list: Vec<String> = 
         vec![
-            "youtube.com".to_string(), 
-            "googlevideo.com".to_string(),      
+            "youtube.com".to_string(),       
             "youtu.be".to_string(),
             "googlevideo.com".to_string(),
             "ytimg.com".to_string(),
@@ -114,9 +113,10 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
                             }
                         }
                     }
-                    todo!()
+                    continue;
                 }
-        } else {
+        } 
+        else {
             if let Some(ipv6_packet) = Ipv6Packet::new(packet) {
                 if let Some(tcp_packet) = TcpPacket::new(ipv6_packet.payload()) {
                     let sequence = tcp_packet.get_sequence();
@@ -197,12 +197,13 @@ pub extern "C" fn Java_com_example_blinddpi_NativeBridge_startEngine(
     _env: JNIEnv,
     _class: JClass,
     vpn_fd: jint,
-    split_tunneling: bool,
+    split_tunneling: jni::sys::jboolean
 ) {
     std::thread::spawn(move || {
+        let split_bool = split_tunneling != 0;
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            if let Err(e) = like_main(split_tunneling, vpn_fd).await {
+            if let Err(e) = like_main(split_bool, vpn_fd).await {
                 eprintln!("[Rust Error] Engine crashed: {:?}", e);
             }
         });
