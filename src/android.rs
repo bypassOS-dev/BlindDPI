@@ -10,6 +10,10 @@ use std::net::SocketAddr;
 use std::os::fd::FromRawFd;
 use std::time::Duration;
 
+use jni::JNIEnv;
+use jni::objects::JClass;
+use jni::sys::jint;
+
 pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let file = unsafe { std::fs::File::from_raw_fd(vpn_fd) };
     let mut tun = tokio::fs::File::from_std(file);
@@ -20,13 +24,16 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
     let mut last_clean = Instant::now();
 
 
-    let white_list: Vec<String> = fs::read_to_string("white_list.txt")
-        .expect("[Error] File for white list doesn't exist!")
-        .lines()
-        .map(|s| s.trim().to_lowercase())
-        .filter(|s| !s.is_empty() && !s.starts_with('#'))
-        .collect();
-
+    let white_list: Vec<String> = 
+        vec![
+            "youtube.com".to_string(), 
+            "googlevideo.com".to_string(),      
+            "youtu.be".to_string(),
+            "googlevideo.com".to_string(),
+            "ytimg.com".to_string(),
+            "ggpht.com".to_string(),
+            "youtubei.googleapis.com".to_string(),
+        ];
     loop {
         if last_clean.elapsed() >= Duration::from_secs(10) {
             pending.retain(|_, (created_in, _)| created_in.elapsed() < Duration::from_secs(10));
@@ -97,12 +104,12 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
 
                                         send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
                                     } else {
-                                        todo!()
+                                        continue;
                                     }
                                 } else {
-                                    todo!()
+                                    continue;
                                 }
-                                todo!()
+                                continue;
 
                             }
                         }
@@ -165,21 +172,39 @@ pub async fn like_main(split_tunneling_bool: bool, vpn_fd: i32) -> Result<(), Bo
                                         let ack = tcp_packet.get_acknowledgement();
                                         send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
                                     }else {
-                                        todo!()
+                                        continue;
                                     }
                                 } else {
-                                    todo!()
+                                    continue;
                                 }
-                                todo!()
+                                continue;
 
                                 }
                             }
                         }
-                        todo!()
+                        continue;
                     }
                 }
             }
         }
     }
     Ok(())
+}
+
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_example_blinddpi_NativeBridge_startEngine(
+    _env: JNIEnv,
+    _class: JClass,
+    vpn_fd: jint,
+    split_tunneling: bool,
+) {
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            if let Err(e) = like_main(split_tunneling, vpn_fd).await {
+                eprintln!("[Rust Error] Engine crashed: {:?}", e);
+            }
+        });
+    });
 }

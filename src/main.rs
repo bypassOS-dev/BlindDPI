@@ -12,12 +12,6 @@ mod windows;
 #[cfg(target_os = "windows")]
 use windows::like_main as backend;
 //===============================
-//===========ANDROID=============
-#[cfg(target_os = "android")]
-mod android;
-#[cfg(target_os = "android")]
-use android::like_main as backend;
-//===============================
 //==========GENERAL==============
 use std::{io, process::Command};
 mod helper_functions;
@@ -28,9 +22,6 @@ pub mod send_packet;
 
 #[tokio::main]
 async fn main() {
-    #[cfg(target_os = "android")]
-    println!("Your OS isn't support yet. Sorry.");
-
     #[cfg(target_os = "linux")]
     let script = include_str!("check_iptables.sh");
     #[cfg(target_os = "linux")]
@@ -63,11 +54,13 @@ async fn main() {
     }else {
         split_tunneling_bool = false;
     }
-
+    //====================================================
+    #[cfg(not(target_os = "android"))]
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(backend(split_tunneling_bool, 123123 as i32)).ok();
+        rt.block_on(backend(split_tunneling_bool)).ok();
     });
+    //=====================================================
 
     tokio::signal::ctrl_c().await.unwrap();
     #[cfg(target_os = "linux")]
