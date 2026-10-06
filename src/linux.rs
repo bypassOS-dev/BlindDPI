@@ -11,11 +11,9 @@ use crate::helper_functions::send_fake_packets;
 //===========================================================
 use send_fake_packets::send_fake_packets;
 pub mod iptables;
-use self::iptables::run_iptables;
 use crate::send_packet::send_packet;
 use find_sni::find_sni;
 use get_domain::is_domain_in_white_list;
-use get_domain::is_domain_rus;
 //===================================================
 
 pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -54,7 +52,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
     });
     
     //==============checking for witelist=======================
-    let white_list: Vec<String> = fs::read_to_string("")
+    let white_list: Vec<String> = fs::read_to_string("white_list.txt")
         .expect("[Error]File white list doesn't exist!")
         .lines()
         .map(|s| s.trim().to_lowercase())
@@ -95,14 +93,23 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
 
                         // Find sni:
                         if let Some((pos, domain)) = find_sni(&data) {
+                             // Checking domain. If it's domain must
+                            // will bypass then variable == true
                             let domain_in_white_list = is_domain_in_white_list(&domain, &white_list);
+
+                             // If it's domain in white list and user asked for split tunneling,
+                            // Or if he doesn't ask for split tonneling... 
                             if domain_in_white_list && split_tunneling_bool || !split_tunneling_bool{
+                                // Get user's IP, server's IP and acknowledgement for send packets
                                 let my_ip = SocketAddr::new(ipv4_packet.get_source().into(), tcp_packet.get_source());
                                 let server_ip = SocketAddr::new(ipv4_packet.get_destination().into(), tcp_packet.get_destination());
                                 let ack = tcp_packet.get_acknowledgement();
 
                                 send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
                             } else {
+                                  // If domain don't in white list 
+                                 // (it's can be some site that don't block in user's region)
+                                // we just forward packet! 
                                 let my_ip = SocketAddr::new(ipv4_packet.get_source().into(), tcp_packet.get_source());
                                 let server_ip = SocketAddr::new(ipv4_packet.get_destination().into(), tcp_packet.get_destination());
                                 let ack = tcp_packet.get_acknowledgement();
@@ -113,10 +120,14 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                 send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload).await?;
                                 send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload).await?;
                             } 
-                        // If sni don't found then add to our storage
+                         // If sni don't found then add to our storage
+                        // (because it's mean that packet was modified)
                         }else {
                             pending.insert(start_seq, (Instant::now(), data));
                         }
+
+                         // Drop real packet
+                        // (Because we already send our packet)
                         msg.set_verdict(Verdict::Drop);
                         queue.verdict(msg)?;
                         continue;
@@ -124,34 +135,36 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                     }
 
                     // But if this packet isn't partial ==> check: Is it TSL-handshake?
-                    if tcp_payload.len() >= 5 
-                        && tcp_payload[0] == 0x16 
-                        && tcp_payload[1] == 0x03
-                        && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)
+                    if tcp_payload.len() >= 5          // This packet must be more that 5 bytes to rust isn't panic
+                        && tcp_payload[0] == 0x16     // "0x16" -> First byte ALL tls-handshake
+                        && tcp_payload[1] == 0x03    // Like you already understand second byte --> 0x03 
+                        && (tcp_payload[2] >= 0x01 && tcp_payload[2] <= 0x04)   // Check tsl-version
                     {  
-                    
+                        // Get domain...
                         if let Some((pos, domain)) = find_sni(tcp_payload) {
+                            // Check domain: Is domain in white list?
                             let split_tunneling = is_domain_in_white_list(&domain, &white_list);
-                            if split_tunneling && split_tunneling_bool{
+
+                             // If it's domain in white list and user asked for split tunneling,
+                            // Or if he doesn't ask for split tonneling... 
+                            if split_tunneling && split_tunneling_bool || !split_tunneling_bool{
+                                // Get user's IP, server's IP and acknowledgement for send packets
                                 let my_ip = SocketAddr::new(ipv4_packet.get_source().into(), tcp_packet.get_source());
                                 let server_ip = SocketAddr::new(ipv4_packet.get_destination().into(), tcp_packet.get_destination());
                                 let ack = tcp_packet.get_acknowledgement();
-                                send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
-                            }else if split_tunneling_bool && is_domain_rus(&domain){
-                                msg.set_verdict(Verdict::Accept);
-                                queue.verdict(msg)?;
-                                continue;
-                            }else if split_tunneling_bool ==  false {
-                                let my_ip = SocketAddr::new(ipv4_packet.get_source().into(), tcp_packet.get_source());
-                                let server_ip = SocketAddr::new(ipv4_packet.get_destination().into(), tcp_packet.get_destination());
-                                let ack = tcp_packet.get_acknowledgement();
+
                                 send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
                             } else {
-                                msg.set_verdict(Verdict::Accept);
-                                queue.verdict(msg)?;
-                                continue;
+                                  // If domain don't in white list 
+                                 // (it's can be some site that don't block in user's region)
+                                // we just forward packet! 
+                                let my_ip = SocketAddr::new(ipv4_packet.get_source().into(), tcp_packet.get_source());
+                                let server_ip = SocketAddr::new(ipv4_packet.get_destination().into(), tcp_packet.get_destination());
+                                let ack = tcp_packet.get_acknowledgement();
+
+                                send_packet(my_ip, server_ip, sequence, ack, 64, tcp_payload).await?;
                             }
-                        
+                        // If inside packet we don't find domain then put it in pending 
                         }else {
                             pending.insert(sequence, (Instant::now(), tcp_payload.to_vec()));
                         }
