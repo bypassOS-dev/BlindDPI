@@ -60,7 +60,6 @@ async fn main() {
     }
     //====================================================
     //Run main function in another OS-stream
-    #[cfg(not(target_os = "android"))]
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(backend(split_tunneling_bool)).ok();
