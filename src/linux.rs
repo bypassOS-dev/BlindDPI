@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, net::{SocketAddr}, u8};
 use nfq::{Queue, Verdict};
 use tokio::io as tokio_io; 
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWriteExt, AsyncWrite};
 use std::time::{Duration, Instant};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
 //==============================================================
@@ -50,9 +50,40 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
-    
-    //==============checking for witelist=======================
-    let white_list: Vec<String> = fs::read_to_string("white_list.txt")
+    //==============Checking for exist file=====================
+    let whitelist_path = "white_list.txt";
+
+    if !std::path::Path::new(whitelist_path).exists() {
+        let default_domains = "\
+youtube.com
+youtu.be
+googlevideo.com
+ytimg.com
+ggpht.com
+youtubei.googleapis.com
+soundcloud.com
+sndcdn.com
+discord.com
+discord.co
+discordstatus.com
+discordapp.com
+discordapp.net
+discord.media
+discord.gg
+instagram.com
+cdninstagram.com
+facebook.com
+fb.com
+fbcdn.net
+twitter.com
+x.com
+twimg.com
+t.co
+";
+        tokio::fs::write(whitelist_path, default_domains).await?;
+    }
+    //==============Checking for witelist=======================
+    let white_list: Vec<String> = fs::read_to_string(whitelist_path)
         .expect("[Error]File white list doesn't exist!")
         .lines()
         .map(|s| s.trim().to_lowercase())
