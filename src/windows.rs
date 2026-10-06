@@ -80,17 +80,17 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                 let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                                 let ack = tcp_packet.get_acknowledgement();
 
-                                send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack, &driver, &packet.address).await?;
+                                send_fake_packets(pos, &domain, start_seq, &data, my_ip.into(), server_ip.into(), ack, &driver, &packet.address).await?;
                             } else {
                                 let my_ip = SocketAddrV4::new(ipv4_packet.get_source(), tcp_packet.get_source());
                                 let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                                 let ack = tcp_packet.get_acknowledgement();
 
-                                    let p1_len  = data.len() - tcp_payload.len();
-                                    let p1_payload = &data[..p1_len];
-                                    let p2_payload = &data[p1_len..];
-                                    send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload, &driver, &packet.address).await?;
-                                    send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload, &driver, &packet.address).await?;
+                                let p1_len  = data.len() - tcp_payload.len();
+                                let p1_payload = &data[..p1_len];
+                                let p2_payload = &data[p1_len..];
+                                send_packet(my_ip.into(), server_ip.into(), start_seq, ack, 64, p1_payload, &driver, &packet.address).await?;
+                                send_packet(my_ip.into(), server_ip.into(), sequence, ack, 64, p2_payload, &driver, &packet.address).await?;
                                 } 
                             }else {
                                 pending.insert(start_seq, (Instant::now(), data));
@@ -113,7 +113,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                     let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                                     let ack = tcp_packet.get_acknowledgement();
 
-                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack, &driver, &packet.address).await?;
+                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip.into(), server_ip.into(), ack, &driver, &packet.address).await?;
                                 }else if split_tunneling_bool && is_domain_rus(&domain){
                                     
                                 }else if split_tunneling_bool ==  false {
@@ -121,7 +121,7 @@ pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::er
                                     let server_ip = SocketAddrV4::new(ipv4_packet.get_destination(), tcp_packet.get_destination());
                                     let ack = tcp_packet.get_acknowledgement();
 
-                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack, &driver, &packet.address).await?;
+                                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip.into(), server_ip.into(), ack, &driver, &packet.address).await?;
                                 } else {
                                     continue;
                                 }
