@@ -13,11 +13,11 @@ mod windows;
 use windows::like_main as backend;
 //===============================
 //==========GENERAL==============
-use std::{io, process::Command};
+use std::process::Command;
 mod helper_functions;
+mod send_ctrl_c_to_dlinddpi;
 pub mod send_packet;
 //===============================
-
 
 
 #[tokio::main]
@@ -44,20 +44,9 @@ async fn main() {
     run_iptables().await;
 
     //===============Split tunneling=======================
-    let split_tunneling_bool:bool;
+    let split_tunneling_bool:bool = false;
 
-    println!("Enable split tunneling? (yes/no)  ");
-    let mut split_tunneling = String::new();
-    io::stdin()
-        .read_line(&mut split_tunneling)
-        .expect("[Error]Read error");
-    let split_tunneling = split_tunneling.trim();
-
-    if split_tunneling == "yes" || split_tunneling == "y"   {
-        split_tunneling_bool = true;
-    }else {
-        split_tunneling_bool = false;
-    }
+    
     //====================================================
     //Run main function in another OS-stream
     std::thread::spawn(move || {
