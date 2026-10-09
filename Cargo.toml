@@ -10,6 +10,7 @@ pnet = "0.35"
 pnet_transport = "0.35"
 nix = { version = "0.29", features = ["signal"] }
 sysinfo = "0.33"
+eframe = "0.30"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
