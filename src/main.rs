@@ -11,12 +11,10 @@ use windows::like_main as backend;
 //==========GENERAL==============
 use run_blinddpi::run_blinddpi;
 use eframe::egui;
-
-use crate::send_ctrl_c_to_dlinddpi::send_ctrl_c;
+use tokio_util::sync::CancellationToken;
 
 mod run_blinddpi;
 mod helper_functions;
-mod send_ctrl_c_to_dlinddpi;
 pub mod send_packet;
 //===============================
 
@@ -42,7 +40,7 @@ struct MyApp{
     is_running: bool,
     show_settings: bool,
     split_tunneling: bool,
-    which_one: i32          // Check: Is this run first?  
+    cancel_token: Option<CancellationToken>
 }
 
 impl Default for MyApp {
@@ -51,7 +49,7 @@ impl Default for MyApp {
             is_running: false,
             show_settings: false,
             split_tunneling: false,
-            which_one: 0,
+            cancel_token: None,
         }
     }
 }
@@ -106,15 +104,21 @@ impl eframe::App for MyApp{
                         .rounding(60.0);
 
                     if ui.add_sized([120.0, 120.0], button).clicked() {
-                        if self.which_one % 2  == 0 {
-                            tokio::spawn(async {
-                                run_blinddpi().await;
+                        if !self.is_running {
+                            let token = CancellationToken::new();
+
+                            let token_for_backend = token.clone();
+
+                            self.cancel_token = Some(token);
+
+                            tokio::spawn(async move {
+                                run_blinddpi(token_for_backend).await;
                             });
                         } else {
-                            send_ctrl_c();
+                            if let Some(token) = self.cancel_token.take() {
+                                token.cancel();
+                            }
                         }
-
-                        self.which_one += 1;
                         
                         self.is_running = !self.is_running;
                     }

@@ -8,7 +8,7 @@ use crate::linux::iptables::run_iptables;
 use std::process::Command;
 //===============================
 
-pub async fn run_blinddpi() {
+pub async fn run_blinddpi(token: tokio_util::sync::CancellationToken) {
     // Run bash script which checking for necessary utils
     #[cfg(target_os = "linux")]
     let script = include_str!("check_iptables.sh");
@@ -41,12 +41,20 @@ pub async fn run_blinddpi() {
         rt.block_on(backend(split_tunneling_bool)).ok();
     });
     //=====================================================
-    // If user press ctrl+c then clean all nft-rule (if OS isn't linux then just close programm)
-    tokio::signal::ctrl_c().await.unwrap();
+    // If user press ctrl+c/stop then clean all nft-rule (if OS isn't linux then just close programm)
+    tokio::select! {
+        _ = token.cancelled() => {},
+        _ = tokio::signal::ctrl_c() => {},
+    }
+
     #[cfg(target_os = "linux")]
     {
-    println!("\nOk... make clean the iptables...");
-    crate::linux::iptables::remove_iptables().await;
-    std::process::exit(0);
+        println!("Ok... make clean the iptables...");
+        crate::linux::iptables::remove_iptables().await;
+
+        if !token.is_cancelled() {
+            std::process::exit(0);
+        }
     }
+    
 }
