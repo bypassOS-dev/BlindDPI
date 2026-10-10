@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, net::{SocketAddr}, u8};
+use std::{collections::HashMap, fs, net::{SocketAddr}};
 use nfq::{Queue, Verdict};
 use tokio::io as tokio_io; 
 use tokio::io::AsyncWriteExt;

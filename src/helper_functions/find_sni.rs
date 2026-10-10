@@ -36,7 +36,7 @@ pub fn find_sni(buf: &[u8]) -> Option<(usize, String)>{
             let domain = String::from_utf8(name_bytes.to_vec()).ok()?;
             let split_pos = name_start + name_len / 2;
 
-            let len = u16::from_be_bytes([*lenght.get(0)?, *lenght.get(1)?]);
+            let len = u16::from_be_bytes([*lenght.first()?, *lenght.get(1)?]);
             let real_len = buf.len();
 
             if (len as usize + 5) == real_len {

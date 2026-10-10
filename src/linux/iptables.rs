@@ -35,5 +35,6 @@ pub async fn run_iptables() {
 pub async fn remove_iptables() {
     let _ = Command::new("nft")
         .args(["delete", "table", "inet", "blind_dpi"])
-        .status();
+        .status()
+        .await;
 }
