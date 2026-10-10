@@ -8,7 +8,7 @@ use crate::linux::iptables::run_iptables;
 use std::process::Command;
 //===============================
 
-pub async fn run_blinddpi(token: tokio_util::sync::CancellationToken) {
+pub async fn run_blinddpi(token: tokio_util::sync::CancellationToken, &split_tunneling_bool: &bool) {
     // Run bash script which checking for necessary utils
     #[cfg(target_os = "linux")]
     let script = include_str!("check_iptables.sh");
@@ -29,10 +29,6 @@ pub async fn run_blinddpi(token: tokio_util::sync::CancellationToken) {
     // somee stuff for sniffing packets:
     #[cfg(target_os = "linux")]
     run_iptables().await;
-
-    //===============Split tunneling=======================
-    let split_tunneling_bool:bool = false;
-
     
     //====================================================
     //Run main function in another OS-stream

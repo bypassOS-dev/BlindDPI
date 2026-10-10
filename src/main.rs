@@ -111,8 +111,9 @@ impl eframe::App for MyApp{
 
                             self.cancel_token = Some(token);
 
+                            let split_tunneling_bool = self.split_tunneling;
                             tokio::spawn(async move {
-                                run_blinddpi(token_for_backend).await;
+                                run_blinddpi(token_for_backend, &split_tunneling_bool).await;
                             });
                         } else {
                             if let Some(token) = self.cancel_token.take() {
