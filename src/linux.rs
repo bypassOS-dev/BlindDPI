@@ -3,7 +3,7 @@ use nfq::{Queue, Verdict};
 use tokio::io as tokio_io; 
 use tokio::io::AsyncWriteExt;
 use std::time::{Duration, Instant};
-use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::{TcpPacket}};
+use pnet::packet::{Packet, ipv4::Ipv4Packet, ipv6::Ipv6Packet, tcp::TcpPacket};
 //==============================================================
 use crate::helper_functions::find_sni;
 use crate::helper_functions::get_domain;
@@ -97,10 +97,10 @@ t.co
             last_clean = Instant::now();
         }
         let mut msg = queue.recv()?;
-        let payload = msg.get_payload();
+        let payload = msg.get_payload().to_vec();
         
         // ================ Try to parsing to Ipv4 ===============
-        if let Some(ipv4_packet) = Ipv4Packet::new(payload) {
+        if let Some(ipv4_packet) = Ipv4Packet::new(&payload) {
             // ========= If this packet is Ipv4 then get Tcp-packet inside Ipv4 packet ==========
             if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
                 let sequence = tcp_packet.get_sequence();
@@ -208,5 +208,10 @@ t.co
                 queue.verdict(msg)?;
             }
         }
+        if let Some(ipv6_packet) = Ipv6Packet::new(&payload) {
+            if let Some(tcp_packet) = TcpPacket::new(ipv6_packet.payload()) {
+                
+            }
+        }  
     }
 }

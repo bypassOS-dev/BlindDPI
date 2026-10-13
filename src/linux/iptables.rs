@@ -1,19 +1,19 @@
 use tokio::process::Command;
 
 pub async fn run_iptables() {
-    let _add_table_inet = Command::new("nft")
+    let _add_table_inet = Command::new("/usr/sbin/nft")
         .args(["add", "table", "inet", "blind_dpi"])
         .status()
         .await
         .expect("[ERROR] CRASHED WHEN ADDIND THE RULE!");
 
-    let _chain = Command::new("nft")
+    let _chain = Command::new("/usr/sbin/nft")
         .args(["add", "chain", "inet", "blind_dpi", "output", "{ type filter hook output priority 0; }"])
         .status()
         .await
         .expect("[ERROR] CRASHED WHEN CREATED A CHAIN!");
 
-    let _rule = Command::new("nft")
+    let _rule = Command::new("/usr/sbin/nft")
         .args([
             "add",
             "rule",
@@ -33,7 +33,7 @@ pub async fn run_iptables() {
         .expect("[ERROR] CRASHED WHEN CREATED A NFT RULE!");
 }
 pub async fn remove_iptables() {
-    let _ = Command::new("nft")
+    let _ = Command::new("/usr/sbin/nft")
         .args(["delete", "table", "inet", "blind_dpi"])
         .status()
         .await;
