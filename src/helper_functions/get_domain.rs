@@ -1,4 +1,4 @@
-pub fn is_domain_in_white_list(domain: &str, content: &Vec<String>) -> bool{
+pub fn is_domain_in_white_list(domain: &str, content: &[String]) -> bool{
     let domain = domain.to_lowercase();
 
     for line in content {

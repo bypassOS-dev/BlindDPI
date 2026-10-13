@@ -13,11 +13,11 @@ use get_domain::is_domain_in_white_list;
 
 
 pub async fn general (
-    payload: Vec<u8>, 
+    payload: &[u8], 
     pending: &mut HashMap<u32, (std::time::Instant, std::vec::Vec<u8>)>,
-    white_list: Vec<String>,
+    white_list: &[String],
     split_tunneling_bool: bool,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Verdict, Box<dyn std::error::Error + Send + Sync>> {
     if let Some(ipv4_packet) = Ipv4Packet::new(&payload) {
         // ========= If this packet is Ipv4 then get Tcp-packet inside Ipv4 packet ==========
         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
@@ -77,6 +77,7 @@ pub async fn general (
 
                     // Drop real packet
                     // (Because we already send our packet)
+                    return Ok(Verdict::Drop);
                     }
                 }
 
@@ -114,10 +115,12 @@ pub async fn general (
                     }else {
                         pending.insert(sequence, (Instant::now(), tcp_payload.to_vec()));
                     }
+                    return Ok(Verdict::Drop);
                 }
                 // If it's not piece of packet or tls-handshake ==> We don't care!
+                return Ok(Verdict::Accept);
         }
     }
-    
-    Ok(())
+
+    Ok(Verdict::Accept)
 }
