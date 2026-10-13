@@ -5,9 +5,7 @@ use tokio::io::AsyncWriteExt;
 use std::time::{Duration, Instant};
 use pnet::packet::{Packet, ipv4::Ipv4Packet, ipv6::Ipv6Packet, tcp::TcpPacket};
 //==============================================================
-use crate::helper_functions::find_sni;
-use crate::helper_functions::get_domain;
-use crate::helper_functions::send_fake_packets;
+use crate::helper_functions::{find_sni, get_domain, send_fake_packets, general_ipv4};
 //===========================================================
 use send_fake_packets::send_fake_packets;
 pub mod iptables;
@@ -96,7 +94,7 @@ t.co
             pending.retain(| _, (created_at, _)| created_at.elapsed() < Duration::from_secs(10));
             last_clean = Instant::now();
         }
-        let mut msg = queue.recv()?;
+        let mut msg: nfq::Message = queue.recv()?;
         let payload = msg.get_payload().to_vec();
         
         // ================ Try to parsing to Ipv4 ===============
@@ -210,7 +208,7 @@ t.co
         }
         if let Some(ipv6_packet) = Ipv6Packet::new(&payload) {
             if let Some(tcp_packet) = TcpPacket::new(ipv6_packet.payload()) {
-                
+
             }
         }  
     }
