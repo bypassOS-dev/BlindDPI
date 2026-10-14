@@ -2,6 +2,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::collections::HashMap;
 use std::time::Instant;
 use nfq::Verdict;
+use pnet::packet::ipv6::Ipv6Packet;
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::TcpPacket};
 //==============================================================
 use crate::helper_functions::{find_sni, get_domain, send_fake_packets};
@@ -31,9 +32,23 @@ pub async fn general (
                 white_list
             ).await;
         }
+    } 
+    if let Some(ipv6_packet) = Ipv6Packet::new(payload) {
+        if let Some(tcp_packet) = TcpPacket::new(ipv6_packet.payload()) {
+            return handle_tcp(
+                pending, 
+                tcp_packet, 
+                ipv6_packet.get_source().into(), 
+                ipv6_packet.get_destination().into(), 
+                split_tunneling_bool, 
+                white_list
+            ).await;
+        }
     }
     Ok(Verdict::Accept)
 }
+
+
 
 
 
