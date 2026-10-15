@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use nfq::Verdict;
 use pnet::packet::ipv6::Ipv6Packet;
+use pnet::packet::udp::UdpPacket;
 use pnet::packet::{Packet, ipv4::Ipv4Packet, tcp::TcpPacket};
 //==============================================================
 use crate::helper_functions::handle_tcp::handle_tcp;
+use crate::helper_functions::handle_udp::handle_udp;
 //===========================================================
 
 pub async fn general (
@@ -22,6 +24,11 @@ pub async fn general (
                 ipv4_packet.get_destination().into(), 
                 split_tunneling_bool, 
                 white_list
+            ).await;
+        }
+        if let Some(udp_packet) = UdpPacket::new(ipv4_packet.payload()) {
+            return handle_udp(
+                udp_packet,
             ).await;
         }
     } 
