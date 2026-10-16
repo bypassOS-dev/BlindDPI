@@ -19,6 +19,22 @@ pub async fn handle_udp (
     let is_v1 = payload[1..5] == [0, 0, 0, 1];
 
     if is_initial && is_long_header && is_v1 {
+        let dcid_len = payload[5] as usize;
+
+        let dcid_end = 6 + dcid_len;
+
+        let Some(dcid) = payload.get(6..dcid_end) else {
+            return Ok(Verdict::Accept);
+        };
+
+        let Some(&scid_len) = payload.get(dcid_end) else {
+            return Ok(Verdict::Accept);
+        };
+
+        let scid_end = dcid_end + 1 + scid_len as usize;
+
+        eprintln!("Initial: DCID={:02x?}, SCID's lenght {}, SCID ended: {}",
+          dcid, scid_len, scid_end);
         // TODO
     }
 
