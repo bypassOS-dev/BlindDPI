@@ -18,7 +18,7 @@ pub async fn handle_udp (
     let first = payload[0];
 
     // The most interesting part of check.
-    // 0xC0 = 11000000
+    // 0xC0 = 1100 0000
     // And first bit (well 7 for computer) 
     // in QUIC Initial must be equal 1
     // 1 means what it is long header
@@ -27,11 +27,19 @@ pub async fn handle_udp (
     // will be considered invalid
     let is_long_header = (first & 0xC0) == 0xC0;
 
+    // 0x30 = 0011 0000
+    // That is 3 and 4 bit 
+    // (for computer 4 and 5)
+    // must be equal 0 and 0 so we compare
+    // our bit with 00 (0x00 = 0000 0000)
     let is_initial = (first & 0x30) == 0x00; 
 
+    // Just get version 
     let is_v1 = payload[1..5] == [0, 0, 0, 1];
 
+    // If everythink is true ===> That is QUIC Initial packet
     if is_initial && is_long_header && is_v1 {
+        // DCID - Destination Connection ID
         let dcid_len = payload[5] as usize;
 
         let dcid_end = 6 + dcid_len;
@@ -45,6 +53,14 @@ pub async fn handle_udp (
         };
 
         let scid_end = dcid_end + 1 + scid_len as usize;
+
+        if let Some(&token_len) = payload.get(scid_end) {
+            if token_len != 0 {
+                return Ok(Verdict::Accept);
+            } 
+        };
+
+        // TODO: Summary Lenght
 
         eprintln!("Initial: DCID={:02x?}, SCID's lenght {}, SCID ended: {}",
           dcid, scid_len, scid_end);
