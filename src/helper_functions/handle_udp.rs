@@ -54,12 +54,29 @@ pub async fn handle_udp (
 
         let scid_end = dcid_end + 1 + scid_len as usize;
 
-        if let Some(&token_len) = payload.get(scid_end) {
-            if token_len != 0 {
-                return Ok(Verdict::Accept);
-            } 
+        let Some(&token_len) = payload.get(scid_end) else {
+            return Ok(Verdict::Accept);
+        };
+        if token_len != 0 {
+            return Ok(Verdict::Accept);
+        }
+        let token_end = scid_end + 1;
+
+
+        let Some(&a) = payload.get(token_end) else {
+            return Ok(Verdict::Accept);
+        };
+        let Some(&b) = payload.get(token_end + 1) else {
+            return Ok(Verdict::Accept);
         };
 
+        if a < 64 || b >= 128 {
+            return Ok(Verdict::Accept);
+        }
+
+        let lenght = (a as usize - 64) * 256 + b as usize;
+
+        let encrypted_start = lenght + 2 as usize;
         // TODO: Summary Lenght
 
         eprintln!("Initial: DCID={:02x?}, SCID's lenght {}, SCID ended: {}",
