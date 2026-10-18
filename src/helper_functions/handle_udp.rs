@@ -70,18 +70,17 @@ pub async fn handle_udp (
             return Ok(Verdict::Accept);
         };
 
-        if a < 64 || b >= 128 {
+        if a < 64 || a >= 128 {
             return Ok(Verdict::Accept);
         }
 
-        let lenght = (a as usize - 64) * 256 + b as usize;
+        let length = (a as usize - 64) * 256 + b as usize;
 
-        let encrypted_start = lenght + 2 as usize;
-        // TODO: Summary Lenght
+        let encrypted_start = token_end + 2;
+        // TODO: find SNI and think up what to do with it
 
-        eprintln!("Initial: DCID={:02x?}, SCID's lenght {}, SCID ended: {}",
-          dcid, scid_len, scid_end);
-        // TODO
+        eprintln!("DCID={:02x?} | encrypted from {} | Length={} | total {}",
+            dcid, encrypted_start, length, payload.len());
     }
 
     Ok(Verdict::Accept)
