@@ -86,10 +86,19 @@ pub async fn handle_udp (
         let encrypted_start = token_end + 2;
 
         let hk = Hkdf::<Sha256>::new(Some(&INITIAL_SALT), dcid);
-        // TODO: find SNI and think up what to do with it
 
-        eprintln!("DCID={:02x?} | encrypted from {} | Length={} | total {}",
-            dcid, encrypted_start, length, payload.len());
+        let label = b"tls13 client in";
+
+        let mut info = Vec::new();
+        info.extend_from_slice(&[0x00, 0x20]);
+        info.push(label.len() as u8);
+        info.extend_from_slice(label);
+        info.push(0x00);
+
+        let mut client_secret = [0u8; 32];
+
+        hk.expand(&info, &mut client_secret).map_err(|_| "hkdf expand failed")?;
+        // TODO: find SNI and think up what to do with it
     }
 
     Ok(Verdict::Accept)
