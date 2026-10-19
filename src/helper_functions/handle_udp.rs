@@ -85,21 +85,52 @@ pub async fn handle_udp (
 
         let encrypted_start = token_end + 2;
 
-        let hk = Hkdf::<Sha256>::new(Some(&INITIAL_SALT), dcid);
-
-        let label = b"tls13 client in";
-
-        let mut info = Vec::new();
-        info.extend_from_slice(&[0x00, 0x20]);
-        info.push(label.len() as u8);
-        info.extend_from_slice(label);
-        info.push(0x00);
-
-        let mut client_secret = [0u8; 32];
-
-        hk.expand(&info, &mut client_secret).map_err(|_| "hkdf expand failed")?;
+        let client_secret = client_secret(dcid)?;
         // TODO: find SNI and think up what to do with it
     }
 
     Ok(Verdict::Accept)
+}
+
+pub fn client_secret(dcid: &[u8]) -> Result<[u8; 32], Box<dyn std::error::Error + Send + Sync>>{
+    let hk = Hkdf::<Sha256>::new(Some(&INITIAL_SALT), dcid);
+
+    let label = b"tls13 client in";
+
+    let mut info = Vec::new();
+    info.extend_from_slice(&[0x00, 0x20]);
+    info.push(label.len() as u8);
+    info.extend_from_slice(label);
+    info.push(0x00);
+
+    let mut client_secret = [0u8; 32];
+    hk.expand(&info, &mut client_secret).map_err(|_| "hkdf expand failed")?;
+
+    Ok(client_secret)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn rfc9001_client_initial_secret() {
+        let dcid = [0x83, 0x94, 0xc8, 0xf0, 0x3e, 0x51, 0x57, 0x08];
+        let secret = client_secret(&dcid).unwrap();
+        assert_eq!(
+            hex::encode(secret), 
+            "c00cf151ca5be075ed0ebfb5c80323c42d6b7db67881289af4008f1f6c357aea"
+        );
+    }
 }
