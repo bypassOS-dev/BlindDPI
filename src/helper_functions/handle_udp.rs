@@ -1,7 +1,7 @@
 use nfq::Verdict;
 use pnet::packet::{Packet, udp::UdpPacket};
 use hkdf::Hkdf;
-use sha2::Sha256;
+use sha2::{Sha256, digest::core_api::{CoreWrapper, CtVariableCoreWrapper}};
 
 const INITIAL_SALT: [u8; 20] = [
     0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17,
@@ -109,16 +109,23 @@ pub fn client_secret(dcid: &[u8]) -> Result<[u8; 32], Box<dyn std::error::Error 
     Ok(client_secret)
 }
 
+fn get_from_hk(
+    hk: Hkdf<Sha256>, 
+    string: &str, 
+    out: &mut [u8]
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let label = format!("tls13 {}", string);
 
+    let mut info = Vec::new();
+    info.extend_from_slice(&(out.len().to_be_bytes()));
+    info.push(label.len() as u8);
+    info.extend_from_slice(label.as_bytes());
+    info.push(0x00);
 
+    hk.expand(&info, out).map_err(|_| "hkdf expand failed")?;
 
-
-
-
-
-
-
-
+    Ok(())
+}
 
 #[cfg(test)]
 mod test {
