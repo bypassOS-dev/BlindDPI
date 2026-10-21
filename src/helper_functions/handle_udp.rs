@@ -97,6 +97,7 @@
             if payload.len() < token_end + number_of_bytes {
                 return Ok(Verdict::Accept);
             }
+
             length = a as usize - num;  
             for i in 1..number_of_bytes {
                 length = length * 256 + payload[token_end + i] as usize;
@@ -104,6 +105,11 @@
 
             let encrypted_start = token_end + number_of_bytes;
 
+            // It's 32 bytes of data. This data we get from DCID and salt. 
+            // From this data we will get 3 another keys:
+            // 1) Encrypted key (16 bytes). It's real key. Via this key  we 
+            // could decipher encrypted data after header
+            // 2) 
             let client_secret = client_secret(dcid)?;
             // TODO: find SNI and think up what to do with it
         }
