@@ -107,9 +107,16 @@
 
             // It's 32 bytes of data. This data we get from DCID and salt. 
             // From this data we will get 3 another keys:
+            //
             // 1) Encrypted key (16 bytes). It's real key. Via this key  we 
             // could decipher encrypted data after header
-            // 2) 
+            //
+            // 2) IV (Initialization Vector - 12 bytes). It's a number that mixed in
+            // to encrypted key. Why? Because it's help to defend from one dangerous 
+            // type of attack - attack by repetition
+            // 
+            // 3) Header security key (16 bytes). Just key for decode some 
+            // parts of code.
             let client_secret = client_secret(dcid)?;
             // TODO: find SNI and think up what to do with it
         }
@@ -120,29 +127,22 @@
 pub fn client_secret(dcid: &[u8]) -> Result<[u8; 32], Box<dyn std::error::Error + Send + Sync>>{
     let hk = Hkdf::<Sha256>::new(Some(&INITIAL_SALT), dcid);
 
-    let label = b"tls13 client in";
+    let mut out = [0u8; 32];
 
-    let mut info = Vec::new();
-    info.extend_from_slice(&[0x00, 0x20]);
-    info.push(label.len() as u8);
-    info.extend_from_slice(label);
-    info.push(0x00);
+    get_from_hk(hk, "client in", &mut out)?;
 
-    let mut client_secret = [0u8; 32];
-    hk.expand(&info, &mut client_secret).map_err(|_| "hkdf expand failed")?;
-
-    Ok(client_secret)
+    Ok(out)
 }
 
 fn get_from_hk(
-    hk: Hkdf<Sha256>, 
+    hk: Hkdf<Sha256>,   
     string: &str, 
     out: &mut [u8]
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let label = format!("tls13 {}", string);
 
     let mut info = Vec::new();
-    info.extend_from_slice(&(out.len().to_be_bytes()));
+    info.extend_from_slice(&(out.len() as u16).to_be_bytes());
     info.push(label.len() as u8);
     info.extend_from_slice(label.as_bytes());
     info.push(0x00);
