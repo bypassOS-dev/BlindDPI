@@ -118,6 +118,17 @@
             // 3) Header security key (16 bytes). Just key for decode some 
             // parts of code.
             let client_secret = client_secret(dcid)?;
+
+            let hk = Hkdf::<Sha256>::from_prk(&client_secret).map_err(|_| "from prk falled")?;
+
+            let mut client_key = [0u8; 16];
+            get_from_hk(&hk, "quic key", &mut client_key)?;
+
+            let mut vi = [0u8; 12];
+            get_from_hk(&hk, "quic iv", &mut vi)?;
+
+            let mut hs = [0u8; 16];
+            get_from_hk(&hk, "quic hp", &mut hs)?;
             // TODO: find SNI and think up what to do with it
         }
 
@@ -129,13 +140,13 @@ pub fn client_secret(dcid: &[u8]) -> Result<[u8; 32], Box<dyn std::error::Error 
 
     let mut out = [0u8; 32];
 
-    get_from_hk(hk, "client in", &mut out)?;
+    get_from_hk(&hk, "client in", &mut out)?;
 
     Ok(out)
 }
 
 fn get_from_hk(
-    hk: Hkdf<Sha256>,   
+    hk: &Hkdf<Sha256>,   
     string: &str, 
     out: &mut [u8]
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
