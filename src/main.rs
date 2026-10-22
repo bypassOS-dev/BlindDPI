@@ -139,6 +139,13 @@ impl eframe::App for MyApp{
                         .size(20.0)
                         .color(status_color)
                     );
+
+                    ui.add_space(40.0);
+                    ui.label(
+                        egui::RichText::new("Does Blind DPI work?\n You can support the author by giving it a 'star' on GitHub!\n https://github.com/bypassOS-dev/BlindDPI")
+                            .size(10.0)
+                            .color(egui::Color32::GRAY)
+                    );
                 });
             }
         });
