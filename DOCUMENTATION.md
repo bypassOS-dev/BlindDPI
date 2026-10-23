@@ -51,3 +51,5 @@ if let Some(process) = sys.process(pid_to_kill) {
 ```
 
 Great, yea..? **NO!** Because it would kill and **THE ENTIRE PROGRAM!** Just imagine this: User wanna turn off the program for 5 minutes but because our great(no) solution they would have to restart the app again and again.... **IT'S SOME HORROR!**
+
+So we get **token**! We move it inside **run_blinddpi**. When user click "stop" we send signal to token. Function **run_blinddpi** waiting for this signal (or if user press **ctrl + c** ib terminal) and run another function (remove_iptables) that clean all nft rules.
