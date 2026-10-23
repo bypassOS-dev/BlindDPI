@@ -5,7 +5,7 @@
 ### `src/`
 
 - [`main.rs`](#mainrs)
-- [`run_blinddpi.rs`](#runblinddpirs)
+- [`run_blinddpi.rs`](#run_blinddpirs)
 
 
 
@@ -64,4 +64,23 @@ Inside this function happen 5  tings:
 - run "**check_iptables.sh**"
 - run "**run_iptables**"
 - run "**backend**"(well "like_main") in another OS stream
-- catch press "**ctrl + c**" or "**stop**" and run "**remove_iptables**" is user's OS is linux
+- catch press "**ctrl + c**" or "**stop**" and run "**remove_iptables**" if user's OS is linux
+
+Let's examine each of them:
+
+## check_iptables.sh 
+
+This is bash script that do 1 thing:
+
+Check for the presence of **nfttables** (and download it if user's PC haven't nfttables)!
+
+piece of code from **check_iptables.sh**:
+```bash
+if command -v nft &> /dev/null; then
+    echo "nft is already installed!"
+else
+    SUCCESSFULLY=false
+
+    echo "nft not found! Installing..."
+    # and download it...
+```
