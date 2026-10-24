@@ -5,3 +5,24 @@
 ## Start from scratch: what is UDP?
 
 **UDP**(User Datagram Protocol) — this is a way for computer to send data over the internet. Why need UDP? We have TCP, yeah? Yes! But TCP it's  like postman: u gived data fot him and he delivers it with 100% guarantee. But UDP it's like post: u will come and give a data but data can will lose or steal  (for example).
+
+
+## What is inside QUIC initial packet? 
+(well it's **first packet upon conect to server**. Like Tls-handshake in TCP)
+
+
+Now we understanding structure of the QUIC Initial packet:
+
+- 1st byte:
+first byte of QUIC initial packet need to server can  understand what usually THIS packet is first. Here is his structure:
+____________________________________________________
+| 7th bit | Is long header? (usually it's mean what|
+|         | packet is QUIC Initial)                |
+|         | 1 == yes, 0 — no                       |
+====================================================
+| 6th bit | Fixed bit. Always equal 1.             |
+====================================================
+| 5th bit | This bytes means "**packet type**".    |
+| and     | 0x00 — initial packet, 0x01 — Handshake|
+| 4th bit | etc... So, in our case, must be equal 0|      |         | and 0.                                 |
+====================================================
