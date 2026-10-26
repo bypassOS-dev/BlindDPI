@@ -38,4 +38,16 @@ DCID Lenght (Destination Connection ID Length) — Thus is length DCID
 
 - 7th - ... bytes:
 
-DCID (Destination Connection ID) — Thus is random number (usually not less that 8 bytes) which indicates what sessions belongs packet (on Destination's sides). For example when u open 3 tab of sites u create 3 sessions. How ur computer might to understand which tab belongs some packet? Via DCID!
+DCID (Destination Connection ID) — This is random number (usually not less that 8 bytes) which indicates what sessions belongs packet (on Destination's sides). For example when u open 3 tab of sites u create 3 sessions. How ur computer might to understand which tab belongs some packet? Via DCID!
+
+- End of DCID - end of DCID + 1:
+
+SCID Length (Source Connection ID Length) — Just length of SCID (1 byte)
+
+- End of DCID + 1 - End of DCID + 1 + SCID Length:
+
+SCID (source ConnectionID) - This is like DCID but random number choice "source".
+
+- End of SCID - End of SCID + 1:
+
+Token length — 
