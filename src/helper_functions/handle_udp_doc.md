@@ -54,6 +54,7 @@ Token length — length of the next field: "**token**"
 
 
 > I won't use type of writing like:
+>
 > ● number of byte
 >     What located in this byte — {definition}
 
@@ -62,3 +63,12 @@ Token length — length of the next field: "**token**"
     Token — This is **proof** what client's address is already checked. 
     When client send 1st packet (initial) there is a field inside it "**Token = 0**". It's mean what packet WASN'T VERIFIED BY THE SERVERS. Server just reject packet (send packet **Retry**). Why? because it doesn't trust the address. Inside Retry packet server deposits itself bytes. 
     When client get answer from server they just resend initial-packet BUT with new token (instead of  1, token is geting another count recived by server).
+
+
+- Length:
+
+   Length — field what says how many bytes occupies fields "Packet number" and packet's payload.
+
+
+- Packet Number:
+
