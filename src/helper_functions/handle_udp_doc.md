@@ -50,4 +50,15 @@ SCID (source ConnectionID) - This is like DCID but random number choice "source"
 
 - End of SCID - End of SCID + 1:
 
-Token length — 
+Token length — length of the next field: "**token**"
+
+
+> I won't use type of writing like:
+> ● number of byte
+>     What located in this byte — {definition}
+
+- Token:
+
+    Token — This is **proof** what client's address is already checked. 
+    When client send 1st packet (initial) there is a field inside it "**Token = 0**". It's mean what packet WASN'T VERIFIED BY THE SERVERS. Server just reject packet (send packet **Retry**). Why? because it doesn't trust the address. Inside Retry packet server deposits itself bytes. 
+    When client get answer from server they just resend initial-packet BUT with new token (instead of  1, token is geting another count recived by server).
