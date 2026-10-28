@@ -2,6 +2,9 @@
     use pnet::packet::{Packet, udp::UdpPacket};
     use hkdf::Hkdf;
     use sha2::{Sha256};
+    use aes::Aes128;
+    use aes::cipher::{BlockEncrypt, KeyInit};
+    use aes::cipher::generic_array::GenericArray;
 
     const INITIAL_SALT: [u8; 20] = [
         0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17,
@@ -103,7 +106,7 @@
                 length = length * 256 + payload[token_end + i] as usize;
             };
 
-            let encrypted_start = token_end + number_of_bytes;
+            let pn_offset = token_end + number_of_bytes;
 
             // It's 32 bytes of data. This data we get from DCID and salt. 
             // From this data we will get 3 another keys:
@@ -124,11 +127,25 @@
             let mut client_key = [0u8; 16];
             get_from_hk(&hk, "quic key", &mut client_key)?;
 
-            let mut vi = [0u8; 12];
-            get_from_hk(&hk, "quic iv", &mut vi)?;
+            let mut iv = [0u8; 12];
+            get_from_hk(&hk, "quic iv", &mut iv)?;
 
             let mut hs = [0u8; 16];
             get_from_hk(&hk, "quic hp", &mut hs)?;
+
+            if payload.len() < pn_offset + 20{
+                return Ok(Verdict::Accept);
+            }
+
+            let sample_start = pn_offset + 4;
+            let sample_end = sample_start + 16;
+            let sample = &payload[sample_start..sample_end];
+
+            let cipher = Aes128::new(GenericArray::from_slice(&hs));
+            let mut block = GenericArray::clone_from_slice(&sample);
+            cipher.encrypt_block(&mut block);
+
+            let mask: [u8; 5] = block[0..5].try_into()?;
             // TODO: find SNI and think up what to do with it
         }
 
