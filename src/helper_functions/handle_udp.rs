@@ -130,8 +130,8 @@
             let mut iv = [0u8; 12];
             get_from_hk(&hk, "quic iv", &mut iv)?;
 
-            let mut hs = [0u8; 16];
-            get_from_hk(&hk, "quic hp", &mut hs)?;
+            let mut hp = [0u8; 16];
+            get_from_hk(&hk, "quic hp", &mut hp)?;
 
             if payload.len() < pn_offset + 20{
                 return Ok(Verdict::Accept);
@@ -141,11 +141,39 @@
             let sample_end = sample_start + 16;
             let sample = &payload[sample_start..sample_end];
 
-            let cipher = Aes128::new(GenericArray::from_slice(&hs));
+            let cipher = Aes128::new(GenericArray::from_slice(&hp));
             let mut block = GenericArray::clone_from_slice(&sample);
             cipher.encrypt_block(&mut block);
 
             let mask: [u8; 5] = block[0..5].try_into()?;
+
+            let mut first_byte = payload[0];
+
+            // Let first byte of packet will be equal 11000111
+            // And mask[0] will be equal 01010111
+            // 0x0f = 00001111. 
+            // Now apply bitwise-AND to the mask and 0x0f:
+            //   00001111
+            // & 01010111
+            // ----------
+            //   00000111
+            //
+            // Next step: XOR (^)
+            //
+            //   00000111
+            //  ^11000111
+            //  ---------
+            //   11000000
+            //
+            // Bits of 11000000:
+            //   bit 7     = 1  -> long header
+            //   bit 6     = 1  -> fixed bit
+            //   bits 5,4  = 00 -> packet type = Initial
+            //   bits 3,2  = 00 -> reserved bits (must be 00)
+            //   bits 1,0  = 00 -> pn_len = 1 byte
+            //
+            // So this is right!
+            first_byte = first_byte ^ (mask[0] & 0x0f);
             // TODO: find SNI and think up what to do with it
         }
 
