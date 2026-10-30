@@ -82,8 +82,6 @@
                 return Ok(Verdict::Accept);
             };
 
-            // Here we check: Is the length written in 2 bytes?
-            // If the lenght written in 1, 4 or 8 bytes then we skip this packet (it's bad. I'll fix it)
             // TODO: Add another check
             let mut length: usize;
             let (number_of_bytes, num) = if a < 64 {
@@ -174,6 +172,19 @@
             //
             // So this is right!
             first_byte = first_byte ^ (mask[0] & 0x0f);
+	    let pn_len = ((first_byte & 0x03) + 1) as usize;
+
+	    let mut packet_number: u64 = 0;
+	    for i in 0..pn_len {
+		let b = payload[pn_offset + i] ^ mask[i + 1];
+		packet_number = packet_number << 8 | b as u64;
+	    }
+
+            let mut nonce = iv;
+            let mut pn_bytes = packet_number.to_be_bytes();
+            for i in 0..8 {
+               nonce[12 - 8 + i] ^= pn_bytes[i];
+            }
             // TODO: find SNI and think up what to do with it
         }
 
