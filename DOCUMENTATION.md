@@ -84,3 +84,50 @@ else
     echo "nft not found! Installing..."
     # and download it...
 ```
+
+
+## run_iptables.sh
+
+FIRST! How work nftables? If u wanna create a rule in nfttables then u must build "russian doll":
+
+--table
+      |
+      chain
+          |
+          rule
+
+
+This is bash script that:
+
+- create a table for nfttables:
+
+```rust
+let _add_table_inet = Command::new("/usr/sbin/nft")
+    .args(["add", "table", "inet", "blind_dpi"])
+    .status()
+    .await
+    .expect("[ERROR] CRASHED WHEN ADDIND THE RULE!");
+```
+
+What is table at nfttables?  It's container where all else will stored. "inet" (in this code) mean what what everything else will work with IPv4 and IPv6.
+
+
+- create a chain for nfttables:
+
+```rust
+let _chain = Command:: new("/usr/sbin/nft")
+    .args(["add", "chain", "inet", "blind_dpi", "output", "{ type filter hook output priority 0; }"])
+    .status()
+    .await
+    .expect ("[ERROR] CRASHED WHEN CREATED A CHAIN!");
+```
+
+In this code we force linux route ALL PACKETS (which computer wanna send to network) to us. 
+
+
+- create a rule for nfttables:
+
+TODO!!!!
+
+
+
