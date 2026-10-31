@@ -72,3 +72,8 @@ Token length — length of the next field: "**token**"
 
 - Packet Number:
 
+    Packet Number (inside my code "pn") — Just a number (1 - 4 bytes) that shows which this packet in sequence 
+
+- Payload:
+    Payload — this is "content" of packet that is useful data our packet.
+    **[!!!]THIS DATA IS ENCRYPTED**
