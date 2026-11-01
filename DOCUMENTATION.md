@@ -127,7 +127,33 @@ In this code we force linux route ALL PACKETS (which computer wanna send to netw
 
 - create a rule for nfttables:
 
-TODO!!!!
+```rust 
+// Here we will create a rule that "say" OS route all packets 
+// which come from 433 port (https) to queue number 0:
+let _rule = Command::new("/usr/sbin/nft")
+    .args([
+        "add",
+        "rule",
+        "inet",
+        "blind_dpi",
+        "output",
+        "tcp",
+        "dport",
+        "443",
+        "counter",
+        "queue",
+        "num",
+        "0",
+    ])
+    .status()
+    .await
+    .expect("[ERROR] CRASHED WHEN CREATED A NFT RULE!");
+```
+
+
+## Backend (linux::like_main())
+
+> Windows version isn't supporting yet, so I will tell u about linux version 🐧
 
 
 
