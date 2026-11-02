@@ -16,7 +16,21 @@ The tool analyzes incoming/outgoing traffic, extracts Server Name Indication (SN
 
 ---
 
+## ⚡ Fast start 
+
+1. Go to release and download last version
+
+2. Run binary (inside folder that was dowload file):
+
+```bash
+sudo ./target/release/BlindDPI
+
+```
+
 ## 🛠️ Build & Installation
+
+> Use this instructions if u wanna build from source:
+
 
 1. Clone the repository:
 ```bash
