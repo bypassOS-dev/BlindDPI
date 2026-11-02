@@ -167,7 +167,7 @@ queue.bind(0)?;
 
 // Get packets:
 loop {
-    // msg is out packet!
+    // "msg" is our packet!
     let mut msg: nfq::Message = queue.recv()?;
     // another code...
 }
@@ -176,3 +176,9 @@ loop {
 Why inside loop? because `queue.recv()` waiting for packet and put it in `msg`. If this will not inside loop then we get ONLY FIRST PACKET and function will finish.
 
 
+Another code isn't useful. 
+
+> Well I mean what explain how I make prety output (BlindDPI is working 00.00.03s) or how I checking for exist file of witelist etc... isn't important!
+
+
+Well I think u must know what inside "loop" we are calling function that return verdict (well thing that say to queue what do with packet: Drop, Accept or something another)
