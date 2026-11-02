@@ -156,4 +156,23 @@ let _rule = Command::new("/usr/sbin/nft")
 > Windows version isn't supporting yet, so I will tell u about linux version 🐧
 
 
+First we need get packets, yea? So we bind queue and force to "listen" 0 queue. What is this mean? Well now all packets that will match to nftables will come to queue. And we (next in code) will take out every packet:
+
+```rust
+// bind QUEUE
+let mut queue = Queue::open()?;
+queue.bind(0)?;
+
+// Some code...
+
+// Get packets:
+loop {
+    // msg is out packet!
+    let mut msg: nfq::Message = queue.recv()?;
+    // another code...
+}
+```
+
+Why inside loop? because `queue.recv()` waiting for packet and put it in `msg`. If this will not inside loop then we get ONLY FIRST PACKET and function will finish.
+
 
