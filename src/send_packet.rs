@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use pnet_transport::TransportSender;
 //================for linux========================
 #[cfg(target_os = "linux")]
 use pnet_transport::{TransportChannelType::Layer3, transport_channel};
@@ -26,7 +28,9 @@ pub async fn send_packet(
     #[cfg(target_os = "windows")]
     driver: &WinDivert<layer::NetworkLayer>,
     #[cfg(target_os = "windows")]
-    address: &WinDivertAddress<layer::NetworkLayer>
+    address: &WinDivertAddress<layer::NetworkLayer>,
+    #[cfg(target_os = "linux")]
+    tx:&mut TransportSender
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match (my_ip.ip(), server_ip.ip()) {
         (IpAddr::V4(src_v4), IpAddr::V4(dst_v4)) => assemble_packet_v4(
@@ -41,7 +45,9 @@ pub async fn send_packet(
             #[cfg(target_os = "windows")]
             driver,
             #[cfg(target_os = "windows")]
-            address
+            address,
+            #[cfg(target_os = "linux")]
+            tx
         )?,
         (IpAddr::V6(src_v6), IpAddr::V6(dst_v6)) => assemble_packet_v6(
             my_ip, 
@@ -79,10 +85,11 @@ fn assemble_packet_v4(
     #[cfg(target_os = "windows")]
     driver: &WinDivert<layer::NetworkLayer>,
     #[cfg(target_os = "windows")]
-    address: &WinDivertAddress<layer::NetworkLayer>) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
+    address: &WinDivertAddress<layer::NetworkLayer>,
     #[cfg(target_os = "linux")]
-    let (mut tx, _) = transport_channel(2048, Layer3(IpNextHeaderProtocols::Tcp))?; // Open a special communication channel  
-
+    tx:  &mut TransportSender,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
+    #[cfg(target_os = "linux")]
         //Calculate total lenght of TCP-segments in bytes:
        // 20 bytes: 
       // 4 bytes: sender's port (2 bytes) + recipient's port (2 bytes)

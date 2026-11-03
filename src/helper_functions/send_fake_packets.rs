@@ -95,7 +95,9 @@ pub async fn send_fake_packets(
     #[cfg(target_os = "windows")]
     driver: &WinDivert<layer::NetworkLayer>,
     #[cfg(target_os = "windows")]
-    address: &WinDivertAddress<layer::NetworkLayer>
+    address: &WinDivertAddress<layer::NetworkLayer>,
+    #[cfg(target_os = "linux")]
+    tx: &mut pnet_transport::TransportSender
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let another_packets = prepare_fake_packets(pos, domain, start_seq, data).await;
 
@@ -110,7 +112,9 @@ pub async fn send_fake_packets(
             #[cfg(target_os = "windows")]
             &driver, 
             #[cfg(target_os = "windows")]
-            address
+            address,
+            #[cfg(target_os = "linux")]
+            tx
         ).await?;
     }
     Ok(())

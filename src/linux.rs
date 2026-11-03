@@ -9,7 +9,10 @@ use crate::helper_functions::general::general;
 pub mod iptables;
 //===================================================
 
-pub async fn like_main(split_tunneling_bool: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn like_main(
+    split_tunneling_bool: bool,
+    tx: &mut pnet_transport::TransportSender
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut queue = Queue::open()?;
     queue.bind(0)?;
 
@@ -97,7 +100,8 @@ t.co
             &payload, 
             &mut pending, 
             &white_list, 
-            split_tunneling_bool
+            split_tunneling_bool,
+            tx
         ).await?;
 
         msg.set_verdict(verdict);

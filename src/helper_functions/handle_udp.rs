@@ -133,7 +133,7 @@ pub async fn handle_udp (
         if payload.len() < pn_offset + 20{
             return Ok(Verdict::Accept);
         }
-
+ 
         let sample_start = pn_offset + 4;
         let sample_end = sample_start + 16;
         let sample = &payload[sample_start..sample_end];
@@ -175,8 +175,8 @@ pub async fn handle_udp (
 
 	    let mut packet_number: u64 = 0;
 	    for i in 0..pn_len {
-		let b = payload[pn_offset + i] ^ mask[i + 1];
-		packet_number = packet_number << 8 | b as u64;
+		    let b = payload[pn_offset + i] ^ mask[i + 1];
+		    packet_number = packet_number << 8 | b as u64;
 	    }
 
         let mut nonce = iv;

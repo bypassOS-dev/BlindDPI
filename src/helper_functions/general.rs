@@ -13,6 +13,7 @@ pub async fn general (
     pending: &mut HashMap<u32, (std::time::Instant, std::vec::Vec<u8>)>,
     white_list: &[String],
     split_tunneling_bool: bool,
+    tx: &mut pnet_transport::TransportSender
 ) -> Result<Verdict, Box<dyn std::error::Error + Send + Sync>> {
     if let Some(ipv4_packet) = Ipv4Packet::new(payload) {
         // ========= If this packet is Ipv4 then get Tcp-packet inside Ipv4 packet ==========
@@ -23,7 +24,8 @@ pub async fn general (
                 ipv4_packet.get_source().into(), 
                 ipv4_packet.get_destination().into(), 
                 split_tunneling_bool, 
-                white_list
+                white_list,
+                tx
             ).await;
         }
         if let Some(udp_packet) = UdpPacket::new(ipv4_packet.payload()) {
@@ -40,7 +42,8 @@ pub async fn general (
                 ipv6_packet.get_source().into(), 
                 ipv6_packet.get_destination().into(), 
                 split_tunneling_bool, 
-                white_list
+                white_list,
+                tx
             ).await;
         }
     }

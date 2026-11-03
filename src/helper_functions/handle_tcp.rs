@@ -21,7 +21,8 @@ pub async fn handle_tcp(
     src: IpAddr,
     dst: IpAddr,
     split_tunneling_bool: bool,
-    white_list: &[String]
+    white_list: &[String],
+    tx: &mut pnet_transport::TransportSender
 ) -> Result<Verdict, Box<dyn std::error::Error + Send + Sync>> {
     let sequence = tcp_packet.get_sequence();
     let tcp_payload = tcp_packet.payload();
@@ -56,7 +57,7 @@ pub async fn handle_tcp(
                     let server_ip = SocketAddr::new(dst, tcp_packet.get_destination());
                     let ack = tcp_packet.get_acknowledgement();
 
-                    send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack).await?;
+                    send_fake_packets(pos, &domain, start_seq, &data, my_ip, server_ip, ack, tx).await?;
                 } else {
                     // If domain don't in white list 
                     // (it's can be some site that don't block in user's region)
@@ -68,8 +69,8 @@ pub async fn handle_tcp(
                     let p1_len  = data.len() - tcp_payload.len();
                     let p1_payload = &data[..p1_len];
                     let p2_payload = &data[p1_len..];
-                    send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload).await?;
-                    send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload).await?;
+                    send_packet(my_ip, server_ip, start_seq, ack, 64, p1_payload, tx).await?;
+                    send_packet(my_ip, server_ip, sequence, ack, 64, p2_payload, tx).await?;
                 } 
             // If sni don't found then add to our storage
             // (because it's mean that packet was modified)
@@ -102,7 +103,7 @@ pub async fn handle_tcp(
                     let server_ip = SocketAddr::new(dst, tcp_packet.get_destination());
                     let ack = tcp_packet.get_acknowledgement();
 
-                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack).await?;
+                    send_fake_packets(pos, &domain, sequence, tcp_payload, my_ip, server_ip, ack, tx).await?;
                 } else {
                     // If domain don't in white list 
                     // (it's can be some site that don't block in user's region)
@@ -111,7 +112,7 @@ pub async fn handle_tcp(
                     let server_ip = SocketAddr::new(dst, tcp_packet.get_destination());
                     let ack = tcp_packet.get_acknowledgement();
 
-                    send_packet(my_ip, server_ip, sequence, ack, 64, tcp_payload).await?;
+                    send_packet(my_ip, server_ip, sequence, ack, 64, tcp_payload, tx).await?;
                 }
             // If inside packet we don't find domain then put it in pending 
             }else {
