@@ -13,6 +13,7 @@ nix = { version = "0.29", features = ["signal"] }
 sysinfo = "0.33"
 eframe = "0.30"
 hkdf = "0.12"
+aes = "0.8"
 sha2 = "0.10"
 aes = "0.8"
 aes-gcm = "0.10"

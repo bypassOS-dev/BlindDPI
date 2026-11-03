@@ -1,10 +1,8 @@
-    use nfq::Verdict;
+    use aes::{Aes128, cipher::{KeyInit, generic_array::GenericArray}};
+use nfq::Verdict;
     use pnet::packet::{Packet, udp::UdpPacket};
     use hkdf::Hkdf;
     use sha2::{Sha256};
-    use aes::Aes128;
-    use aes::cipher::{BlockEncrypt, KeyInit};
-    use aes::cipher::generic_array::GenericArray;
 
     const INITIAL_SALT: [u8; 20] = [
         0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17,
@@ -82,6 +80,8 @@
                 return Ok(Verdict::Accept);
             };
 
+            // Here we check: Is the length written in 2 bytes?
+            // If the lenght written in 1, 4 or 8 bytes then we skip this packet (it's bad. I'll fix it)
             // TODO: Add another check
             let mut length: usize;
             let (number_of_bytes, num) = if a < 64 {
@@ -104,7 +104,7 @@
                 length = length * 256 + payload[token_end + i] as usize;
             };
 
-            let pn_offset = token_end + number_of_bytes;
+            let encrypted_start = token_end + number_of_bytes;
 
             // It's 32 bytes of data. This data we get from DCID and salt. 
             // From this data we will get 3 another keys:
@@ -125,66 +125,24 @@
             let mut client_key = [0u8; 16];
             get_from_hk(&hk, "quic key", &mut client_key)?;
 
-            let mut iv = [0u8; 12];
-            get_from_hk(&hk, "quic iv", &mut iv)?;
+            let mut vi = [0u8; 12];
+            get_from_hk(&hk, "quic iv", &mut vi)?;
 
-            let mut hp = [0u8; 16];
-            get_from_hk(&hk, "quic hp", &mut hp)?;
+            let mut hs = [0u8; 16];
+            get_from_hk(&hk, "quic hp", &mut hs)?;
 
-            if payload.len() < pn_offset + 20{
+            let sample_start = encrypted_start + 4;
+            let sample_end = sample_start + 16;
+
+            if payload.len() < sample_end {
                 return Ok(Verdict::Accept);
             }
 
-            let sample_start = pn_offset + 4;
-            let sample_end = sample_start + 16;
             let sample = &payload[sample_start..sample_end];
 
-            let cipher = Aes128::new(GenericArray::from_slice(&hp));
-            let mut block = GenericArray::clone_from_slice(&sample);
-            cipher.encrypt_block(&mut block);
+            let cipher = Aes128::new(GenericArray::from_slice(&client_key));
 
-            let mask: [u8; 5] = block[0..5].try_into()?;
-
-            let mut first_byte = payload[0];
-
-            // Let first byte of packet will be equal 11000111
-            // And mask[0] will be equal 01010111
-            // 0x0f = 00001111. 
-            // Now apply bitwise-AND to the mask and 0x0f:
-            //   00001111
-            // & 01010111
-            // ----------
-            //   00000111
-            //
-            // Next step: XOR (^)
-            //
-            //   00000111
-            //  ^11000111
-            //  ---------
-            //   11000000
-            //
-            // Bits of 11000000:
-            //   bit 7     = 1  -> long header
-            //   bit 6     = 1  -> fixed bit
-            //   bits 5,4  = 00 -> packet type = Initial
-            //   bits 3,2  = 00 -> reserved bits (must be 00)
-            //   bits 1,0  = 00 -> pn_len = 1 byte
-            //
-            // So this is right!
-            first_byte = first_byte ^ (mask[0] & 0x0f);
-	    let pn_len = ((first_byte & 0x03) + 1) as usize;
-
-	    let mut packet_number: u64 = 0;
-	    for i in 0..pn_len {
-		let b = payload[pn_offset + i] ^ mask[i + 1];
-		packet_number = packet_number << 8 | b as u64;
-	    }
-
-            let mut nonce = iv;
-            let mut pn_bytes = packet_number.to_be_bytes();
-            for i in 0..8 {
-               nonce[12 - 8 + i] ^= pn_bytes[i];
-            }
+            let mut block = GenericArray::clone_from_slice(sample);
             // TODO: find SNI and think up what to do with it
         }
 
