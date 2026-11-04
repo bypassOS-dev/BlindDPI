@@ -12,6 +12,7 @@ use windows::like_main as backend;
 use run_blinddpi::run_blinddpi;
 use eframe::egui;
 use tokio_util::sync::CancellationToken;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 mod run_blinddpi;
 mod helper_functions;
@@ -40,7 +41,8 @@ struct MyApp{
     is_running: bool,
     show_settings: bool,
     split_tunneling: bool,
-    cancel_token: Option<CancellationToken>
+    cancel_token: Option<CancellationToken>,
+    have_error: Arc<AtomicBool>
 }
 
 impl Default for MyApp {
@@ -50,6 +52,7 @@ impl Default for MyApp {
             show_settings: false,
             split_tunneling: false,
             cancel_token: None,
+            have_error:  Arc::new(AtomicBool::new(false))
         }
     }
 }
@@ -57,7 +60,14 @@ impl Default for MyApp {
 impl eframe::App for MyApp{
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.show_settings {
+            if self.have_error.load(Ordering::Relaxed) {
+                ui.add_space(150.0);
+                ui.label(egui::RichText::new(
+                    "ERROR: Clouse the BlindDPI and run with 'SUDO' permission please")
+                    .size(20.0)
+                    .color(egui::Color32::RED)
+                );
+            } else if self.show_settings {
                 ui.vertical_centered(|ui| {
                     ui.add_space(10.0);
                     ui.heading(egui::RichText::new("BlindDPI Settings"));
@@ -112,8 +122,17 @@ impl eframe::App for MyApp{
                             self.cancel_token = Some(token);
 
                             let split_tunneling_bool = self.split_tunneling;
+
+                            let have_error = self.have_error.clone();
                             tokio::spawn(async move {
-                                run_blinddpi(token_for_backend, &split_tunneling_bool).await;
+                                if let Err(err) = run_blinddpi(token_for_backend, &split_tunneling_bool).await {
+                                    eprintln!("error: {err}\n\n\n\n");
+                                    eprintln!("++++++++++++++++++++++++++++++");
+                                    eprintln!("Help: run with sudo permission");
+                                    eprintln!("++++++++++++++++++++++++++++++       \n\n\n\n\n");
+                                    
+                                    have_error.store(true, Ordering::Relaxed);                                
+                                }
                             });
                         } else {
                             if let Some(token) = self.cancel_token.take() {

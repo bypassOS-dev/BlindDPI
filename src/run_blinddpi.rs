@@ -17,6 +17,9 @@ pub async fn run_blinddpi(
     token: tokio_util::sync::CancellationToken, 
     &split_tunneling_bool: &bool
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    //Run main function in another OS-stream
+    let (mut tx, _) = transport_channel(2048, Layer3(IpNextHeaderProtocols::Tcp))?; // Open a special communication channel  
+
     // Run bash script which checking for necessary utils
     #[cfg(target_os = "linux")]
     let script = include_str!("check_iptables.sh");
@@ -39,8 +42,6 @@ pub async fn run_blinddpi(
     run_iptables().await;
     
     //====================================================
-    //Run main function in another OS-stream
-    let (mut tx, _) = transport_channel(2048, Layer3(IpNextHeaderProtocols::Tcp))?; // Open a special communication channel  
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(backend(split_tunneling_bool, &mut tx)).ok();
