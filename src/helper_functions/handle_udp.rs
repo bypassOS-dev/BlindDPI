@@ -68,7 +68,7 @@ pub async fn handle_udp (
         // Token - this is data for check (this check need for server)
         // That is if connect to server is first then token will equal 0
         // If that's not first check then this packet is QUIC Initial (we skip it)
-        let Some(&token_len) = payload.get(scid_end) else {
+        let Some(_) = payload.get(scid_end) else {
             return Ok(Verdict::Accept);
         };
         
@@ -180,10 +180,30 @@ pub async fn handle_udp (
 	    }
 
         let mut nonce = iv;
-        let mut pn_bytes = packet_number.to_be_bytes();
+        let pn_bytes = packet_number.to_be_bytes();
         for i in 0..8 {
            nonce[12 - 8 + i] ^= pn_bytes[i];
         }
+
+        // AAD - clean header. without encrypted piece of code.
+        let mut aad = payload[..pn_offset + pn_len].to_vec();
+        // First byte is already decrypted
+        aad[0] = first_byte;
+        for i in 0..pn_len {
+            aad[pn_offset + i] = payload[pn_offset + i] ^ mask[1 + i];
+        }
+
+        // The body - everythink what aften PN
+        let ciphertext = &payload[pn_offset + pn_len..];
+
+        // Last 16 bytes of ciphertext - AEAD. So Body MUST BE MORE that 16
+        if ciphertext.len() < 16 {
+            return Ok(Verdict::Accept)
+        }
+
+        // TODO!   Decrypt body 
+
+
         // TODO: find SNI and think up what to do with it
     }
 
