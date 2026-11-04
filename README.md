@@ -20,10 +20,10 @@ The tool analyzes incoming/outgoing traffic, extracts Server Name Indication (SN
 
 1. Go to release and download last version
 
-2. Run binary (inside folder that was dowload file):
+2. Run binary (inside folder that u get after extract):
 
 ```bash
-sudo ./target/release/BlindDPI
+sudo ./BlindDPI
 
 ```
 
