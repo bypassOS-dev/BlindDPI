@@ -1,3 +1,5 @@
+use aes_gcm::Aes128Gcm;
+use aes_gcm::aead::{Aead, Payload};
 use nfq::Verdict;
 use pnet::packet::{Packet, udp::UdpPacket};
 use hkdf::Hkdf;
@@ -201,8 +203,16 @@ pub async fn handle_udp (
             return Ok(Verdict::Accept)
         }
 
-        // TODO!   Decrypt body 
+        let cipher = Aes128Gcm::new_from_slice(&client_key)
+            .map_err(|_|"Bad key length")?;
 
+        let decrypted_data = match cipher.decrypt(
+            GenericArray::from_slice(&nonce), 
+            Payload {msg: ciphertext, aad: &aad}
+        ) {
+            Ok(dd) => dd,
+            Err(_) => return Ok(Verdict::Accept)
+        };
 
         // TODO: find SNI and think up what to do with it
     }
