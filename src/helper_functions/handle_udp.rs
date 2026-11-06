@@ -6,7 +6,9 @@ use hkdf::Hkdf;
 use sha2::{Sha256};
 use aes::Aes128;
 use aes::cipher::{BlockEncrypt, KeyInit};
-use aes::cipher::generic_array::GenericArray;
+use aes::cipher::generic_array::GenericArray; 
+
+// use crate::helper_functions::send_udp_packet::send_fake_udp;
 
 const INITIAL_SALT: [u8; 20] = [
     0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17,
@@ -214,7 +216,22 @@ pub async fn handle_udp (
             Err(_) => return Ok(Verdict::Accept)
         };
 
-        // TODO: find SNI and think up what to do with it
+        let mut offset = 0;
+        while offset < decrypted_data.len() {
+            let b = decrypted_data[offset];
+            offset += 1;
+
+            if b == 0x00 {
+                // This is PADDING - skip byte
+                continue;
+            } 
+
+            if b == 0x06 {
+                // CRYPTO - here is SNI
+                //  TODO!
+            }
+        }
+
     }
 
     Ok(Verdict::Accept)
