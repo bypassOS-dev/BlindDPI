@@ -1,15 +1,14 @@
-use pnet::packet::{ip::IpNextHeaderProtocol, ipv4::MutableIpv4Packet, tcp::ipv4_checksum, udp::{self, MutableUdpPacket}};
-use pnet_transport::{TransportChannelType::Layer3, transport_channel};
-use std::net::{SocketAddr,Ipv4Addr, Ipv6Addr, IpAddr};
+use pnet::packet::{ipv4::MutableIpv4Packet, udp::{self, MutableUdpPacket}};
+use std::net::Ipv4Addr;
 use pnet::packet::{
-    Packet, ip::{IpNextHeaderProtocols}, ipv4::{self}, ipv6::MutableIpv6Packet, tcp::{self, MutableTcpPacket, TcpFlags},
+    ip::{IpNextHeaderProtocols}, ipv4::{self}
 };
 use pnet_transport::TransportSender;
 
 
 
 // DOESN'T WORK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-pub async fn _send_fake_udp(
+pub fn _send_fake_udp(
     payload: &[u8],
     src: Ipv4Addr,
     src_port: u16,
@@ -25,6 +24,7 @@ pub async fn _send_fake_udp(
         udp_packet.set_source(src_port);
         udp_packet.set_destination(dst_port);
         udp_packet.set_length(udp_len as u16);
+        udp_packet.set_payload(payload);
 
         let udp_checksum = udp::ipv4_checksum(&udp_packet.to_immutable(), &src, &dst);
         udp_packet.set_checksum(udp_checksum);
@@ -40,8 +40,11 @@ pub async fn _send_fake_udp(
             ip_packet.set_header_length(5);
             ip_packet.set_ttl(7);
             ip_packet.set_next_level_protocol(IpNextHeaderProtocols::Udp);
+            ip_packet.set_payload(&udp_buffer);
+            ip_packet.set_total_length(ip_len as u16);
             ip_packet.set_checksum(ipv4::checksum(&ip_packet.to_immutable()));
 
+            #[cfg(target_os = "linux")]
             tx.send_to(ip_packet, dst.into())?;
         }
     }
