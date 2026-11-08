@@ -85,6 +85,44 @@ t.co
         .map(|s| s.trim().to_lowercase())
         .filter(|s| !s.is_empty() && !s.starts_with('#'))
         .collect();
+
+    //==================Rusia_site.txt==========================
+    let russia_site_path = "russia_site.txt";
+
+    if !std::path::Path::new(russia_site_path).exists() {
+        let default_domains = "\
+yandex.ru
+dzen.ru
+vk.ru
+mail.ru
+ozon.ru
+ya.ru
+avito.ru
+wildberries.ru
+rutube.ru
+vkvideo.ru
+ok.ru
+gosuslugi.ru
+kinopoisk.ru
+gismeteo.ru
+rbc.ru
+sber.ru
+dns-shop.ru
+pikabu.ru
+tbank.ru
+hh.ru
+auto.ru
+habr.com
+";
+        tokio::fs::write(russia_site_path, default_domains).await?;
+    }
+
+    let _rus_sites: Vec<String> = fs::read_to_string(russia_site_path)
+        .expect("[Error] We can't find file 'russia_site.txt'")
+        .lines()
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty() && !s.starts_with('#'))
+        .collect();
     //===============main===============
     loop {
         // Every 10 secs will crean our "pending"

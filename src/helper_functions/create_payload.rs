@@ -1,6 +1,6 @@
 use rand::Rng;
 
-pub fn _make_payload() -> Vec<u8>{
+pub fn _make_payload(content:&[String]) -> Vec<u8>{
     let mut payload: Vec<u8> = Vec::new();
 
     // This is average first byte in QUIC Initial packet: 11000000
@@ -31,7 +31,20 @@ pub fn _make_payload() -> Vec<u8>{
     // We skip token
 
 
-
+    let sni = random_sni(content);
     payload
 
+}
+
+
+
+
+fn random_sni(content: &[String]) -> &str{
+    let count_of_lines = content.len();
+    if count_of_lines > 1 {
+        let random_domain: usize = rand::thread_rng().gen_range(0..count_of_lines);
+        let random_domain = &content[random_domain];
+        return random_domain;
+    }
+    return "vk.ru";
 }
