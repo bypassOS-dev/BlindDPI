@@ -1,6 +1,6 @@
 use rand::Rng;
 
-pub fn _make_payload() {
+pub fn _make_payload() -> Vec<u8>{
     let mut payload: Vec<u8> = Vec::new();
 
     // This is average first byte in QUIC Initial packet: 11000000
@@ -19,5 +19,19 @@ pub fn _make_payload() {
     let mut dcid = [0u8; 8];
     rand::thread_rng().fill(&mut dcid);
     payload.extend_from_slice(&dcid);
+
+    // SCID Length
+    let scid_len = 0x0;
+    payload.push(scid_len);
+    // We skip SCID
+
+    // Token length
+    let token_len = 0x0;
+    payload.push(token_len);
+    // We skip token
+
+
+
+    payload
 
 }
