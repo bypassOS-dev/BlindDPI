@@ -53,40 +53,56 @@ fn random_sni(content: &[String]) -> &str{
 
 
 fn build_clien_hello(sni: &str) -> Vec<u8>{
-    let mut  client_hello = Vec::new();
+    let mut client_hello: Vec<u8> = Vec::new();
+    let mut client_hello_body: Vec<u8> = Vec::new();
+    let mut client_hello_extensions: Vec<u8> = Vec::new();
+
+
+
+    // client hello extensions
+    {
+        // server name
+        let type1: [u8; 2] = [0x00, 0x00]; // SNI
+        client_hello_extensions.extend_from_slice(&type1);
+
+        let length: [u8; 2] = (2 + 1 + 2 + sni.len() as u16).to_be_bytes();    // 2 - list_len, 1 - name_type, 2 - name_len, name
+        client_hello_extensions.extend_from_slice(&length);
+
+    } 
+
+    // client hello body
+    {
+        let legacy_ver: [u8; 2] = [0x03, 0x03];
+        client_hello_body.extend_from_slice(&legacy_ver);
+
+        let mut random_b = [0u8; 32];
+        rand::thread_rng().fill(&mut random_b);
+        client_hello_body.extend_from_slice(&random_b);
+
+        let session_id_len: u8 = 0x00;
+        client_hello_body.push(session_id_len);
+
+        let cipher_suites_len: [u8; 2] = [0x00, 0x06];
+        client_hello_body.extend_from_slice(&cipher_suites_len);
+
+        let cipher_suites: [u8; 6] = [0x13, 0x01, 0x13, 0x02, 0x13, 0x03];
+        client_hello_body.extend_from_slice(&cipher_suites);
+
+        let compression_len = 0x01;
+        client_hello_body.push(compression_len);
+
+        let compression = 0x00;
+        client_hello_body.push(compression);
+
+
+    }
 
     // Handshake header:
     {
         let type_of_payload: u8 = 0x01;
         client_hello.push(type_of_payload);
 
-        // let length_of_body: u8 = 
-    }
-
-    // Client hello body 
-    {
-        let legacy_ver: [u8; 2] = [0x03, 0x03];
-        client_hello.extend_from_slice(&legacy_ver);
-
-
-        let mut random_b = [0u8; 32];
-        rand::thread_rng().fill(&mut random_b);
-        client_hello.extend_from_slice(&random_b);
-
-        let session_id_len: u8 = 0x00;
-        client_hello.push(session_id_len);
-
-        let cipher_suites_len: [u8; 2] = [0x00, 0x06];
-        client_hello.extend_from_slice(&cipher_suites_len);
-
-        let cipher_suites: [u8; 6] = [0x13, 0x01, 0x13, 0x02, 0x13, 0x03];
-        client_hello.extend_from_slice(&cipher_suites);
-
-        let compression_len = 0x01;
-        client_hello.push(compression_len);
-
-        let compression = 0x01;
-        client_hello.push(compression);
+        let length_of_body: [u8; 2] = (client_hello_body.len() as u16).to_be_bytes(); 
     }
 
     client_hello
