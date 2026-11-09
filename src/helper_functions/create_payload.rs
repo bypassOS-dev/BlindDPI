@@ -65,9 +65,20 @@ fn build_clien_hello(sni: &str) -> Vec<u8>{
         let type1: [u8; 2] = [0x00, 0x00]; // SNI
         client_hello_extensions.extend_from_slice(&type1);
 
-        let length: [u8; 2] = (2 + 1 + 2 + sni.len() as u16).to_be_bytes();    // 2 - list_len, 1 - name_type, 2 - name_len, name
+        let sni_len = sni.len();
+
+        let length: [u8; 2] = (2 + 1 + 2 + sni_len as u16).to_be_bytes();    // 2 - list_len, 1 - name_type, 2 - name_len, name
         client_hello_extensions.extend_from_slice(&length);
 
+        let list_len: [u8; 2] = (1 + 2 + sni_len  as u16).to_be_bytes();
+        client_hello_extensions.extend_from_slice(&list_len);
+
+        let name_type = 0x00;
+        client_hello_extensions.push(name_type);
+
+        client_hello_extensions.extend_from_slice(&(sni_len as u16).to_be_bytes());
+
+        client_hello_extensions.extend_from_slice(&sni.as_bytes());
     } 
 
     // client hello body
@@ -101,8 +112,6 @@ fn build_clien_hello(sni: &str) -> Vec<u8>{
     {
         let type_of_payload: u8 = 0x01;
         client_hello.push(type_of_payload);
-
-        let length_of_body: [u8; 2] = (client_hello_body.len() as u16).to_be_bytes(); 
     }
 
     client_hello
