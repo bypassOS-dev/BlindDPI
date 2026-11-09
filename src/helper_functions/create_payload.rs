@@ -32,11 +32,12 @@ pub fn _make_payload(content:&[String]) -> Vec<u8>{
 
 
     let sni = random_sni(content);
+
+    let client_hello = build_clien_hello(sni);
+
     payload
 
 }
-
-
 
 
 fn random_sni(content: &[String]) -> &str{
@@ -47,4 +48,46 @@ fn random_sni(content: &[String]) -> &str{
         return random_domain;
     }
     return "vk.ru";
+}
+
+
+
+fn build_clien_hello(sni: &str) -> Vec<u8>{
+    let mut  client_hello = Vec::new();
+
+    // Handshake header:
+    {
+        let type_of_payload: u8 = 0x01;
+        client_hello.push(type_of_payload);
+
+        // let length_of_body: u8 = 
+    }
+
+    // Client hello body 
+    {
+        let legacy_ver: [u8; 2] = [0x03, 0x03];
+        client_hello.extend_from_slice(&legacy_ver);
+
+
+        let mut random_b = [0u8; 32];
+        rand::thread_rng().fill(&mut random_b);
+        client_hello.extend_from_slice(&random_b);
+
+        let session_id_len: u8 = 0x00;
+        client_hello.push(session_id_len);
+
+        let cipher_suites_len: [u8; 2] = [0x00, 0x06];
+        client_hello.extend_from_slice(&cipher_suites_len);
+
+        let cipher_suites: [u8; 6] = [0x13, 0x01, 0x13, 0x02, 0x13, 0x03];
+        client_hello.extend_from_slice(&cipher_suites);
+
+        let compression_len = 0x01;
+        client_hello.push(compression_len);
+
+        let compression = 0x01;
+        client_hello.push(compression);
+    }
+
+    client_hello
 }
