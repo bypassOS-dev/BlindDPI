@@ -203,6 +203,13 @@ fn build_clien_hello(sni: &str) -> Vec<u8>{
     {
         let type_of_payload: u8 = 0x01;
         client_hello.push(type_of_payload);
+
+        let len = client_hello_body.len() as u32;
+        client_hello.push((len >> 16) as u8);
+        client_hello.push((len >> 8) as u8);
+        client_hello.push(len as u8);
+
+        client_hello.extend_from_slice(&client_hello_body);
     }
 
     client_hello
