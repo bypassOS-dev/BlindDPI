@@ -112,6 +112,61 @@ fn build_clien_hello(sni: &str) -> Vec<u8>{
 
         let ecdsa_secp256r1_sha256: [u8; 2] = [0x04, 0x03];   // For ECDSA certificates
         client_hello_extensions.extend_from_slice(&ecdsa_secp256r1_sha256);
+
+
+
+        // Application-Layer Protocol Negotiation
+        let type1: [u8; 2] = [0x00, 0x10];
+        client_hello_extensions.extend_from_slice(&type1);
+
+        let length: [u8; 2] = [0x00, 0x05];
+        client_hello_extensions.extend_from_slice(&length);
+
+        let list_len: [u8; 2] = [0x00, 0x03];
+        client_hello_extensions.extend_from_slice(&list_len);
+
+        let entry_len: u8 = 0x02;
+        client_hello_extensions.push(entry_len);
+
+        let protocol: [u8; 2] = [0x68, 0x33];
+        client_hello_extensions.extend_from_slice(&protocol);
+        
+
+
+        // supported_versions
+        let type1: [u8; 2] = [0x00, 0x2b];
+        client_hello_extensions.extend_from_slice(&type1);
+
+        let length: [u8; 2] = [0x00, 0x03];  // 1 (list_len) + 2 (version) = 3
+        client_hello_extensions.extend_from_slice(&length);
+
+        let list_len: u8 = 0x02;
+        client_hello_extensions.push(list_len);
+
+        let tls_1_3: [u8; 2] = [0x03, 0x04];  // TLS 1.3
+        client_hello_extensions.extend_from_slice(&tls_1_3);
+
+
+
+        // key_share
+        let type1: [u8; 2] = [0x00, 0x33];
+        client_hello_extensions.extend_from_slice(&type1);
+
+        let length: [u8; 2] = [0x00, 0x26];  // 2 (shares_len) + 2 (group) + 2 (key_len) + 32 (key) = 38
+        client_hello_extensions.extend_from_slice(&length);
+
+        let client_shares_len: [u8; 2] = [0x00, 0x24];  // 2 (group) + 2 (key_len) + 32 (key) = 36
+        client_hello_extensions.extend_from_slice(&client_shares_len);
+
+        let group: [u8; 2] = [0x00, 0x1d];  // x25519
+        client_hello_extensions.extend_from_slice(&group);
+
+        let key_len: [u8; 2] = [0x00, 0x20];  // 32 байта
+        client_hello_extensions.extend_from_slice(&key_len);
+
+        let mut key: [u8; 32] = [0u8; 32];
+        rand::thread_rng().fill(&mut key);
+        client_hello_extensions.extend_from_slice(&key);
     } 
 
     // client hello body
@@ -138,7 +193,10 @@ fn build_clien_hello(sni: &str) -> Vec<u8>{
         let compression = 0x00;
         client_hello_body.push(compression);
 
+        // Leength of extensions
+        client_hello_body.extend_from_slice(&(client_hello_extensions.len() as u16).to_be_bytes());
 
+        client_hello_body.extend_from_slice(&client_hello_extensions);
     }
 
     // Handshake header:
