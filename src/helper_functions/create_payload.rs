@@ -79,6 +79,39 @@ fn build_clien_hello(sni: &str) -> Vec<u8>{
         client_hello_extensions.extend_from_slice(&(sni_len as u16).to_be_bytes());
 
         client_hello_extensions.extend_from_slice(&sni.as_bytes());
+
+
+
+        // supported_groups
+        let type1: [u8; 2] = [0x00, 0x0a];
+        client_hello_extensions.extend_from_slice(&type1);
+
+        let length: [u8; 2] = [0x00, 0x04];
+        client_hello_extensions.extend_from_slice(&length);
+
+        let list_len: [u8; 2] = [0x00, 0x02];
+        client_hello_extensions.extend_from_slice(&list_len);
+
+        let group: [u8; 2] = [0x00, 0x1d];    // Most popular group (Curve25519. IANA = 29)
+        client_hello_extensions.extend_from_slice(&group);
+
+
+
+        // signature_algorithms - list of signature algorithms that understand client
+        let type1: [u8; 2] = [0x00, 0x0d];
+        client_hello_extensions.extend_from_slice(&type1);
+
+        let length: [u8; 2] = [0x00, 0x06];
+        client_hello_extensions.extend_from_slice(&length);
+
+        let list_len: [u8; 2] = [0x00, 0x04];
+        client_hello_extensions.extend_from_slice(&list_len);
+
+        let rsa_pss_rsae_sha256: [u8; 2] = [0x08, 0x04];  // idk what is this but this is standart for RSA certificates
+        client_hello_extensions.extend_from_slice(&rsa_pss_rsae_sha256);
+
+        let ecdsa_secp256r1_sha256: [u8; 2] = [0x04, 0x03];   // For ECDSA certificates
+        client_hello_extensions.extend_from_slice(&ecdsa_secp256r1_sha256);
     } 
 
     // client hello body
