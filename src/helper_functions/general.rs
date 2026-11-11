@@ -12,6 +12,7 @@ pub async fn general (
     payload: &[u8], 
     pending: &mut HashMap<u32, (std::time::Instant, std::vec::Vec<u8>)>,
     white_list: &[String],
+    content: &[String],
     split_tunneling_bool: bool,
     tx: &mut pnet_transport::TransportSender
 ) -> Result<Verdict, Box<dyn std::error::Error + Send + Sync>> {
@@ -30,8 +31,12 @@ pub async fn general (
         }
         if let Some(udp_packet) = UdpPacket::new(ipv4_packet.payload()) {
             return handle_udp(
-                udp_packet,
-            ).await;
+                udp_packet, 
+                content, 
+            ipv4_packet.get_source(),
+            ipv4_packet.get_destination(),
+                tx
+            ).await ;
         }
     } 
     if let Some(ipv6_packet) = Ipv6Packet::new(payload) {

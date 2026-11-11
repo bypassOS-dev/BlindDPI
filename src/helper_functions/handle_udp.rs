@@ -7,8 +7,10 @@ use sha2::{Sha256};
 use aes::Aes128;
 use aes::cipher::{BlockEncrypt, KeyInit};
 use aes::cipher::generic_array::GenericArray; 
+use std::net::Ipv4Addr;
+use pnet_transport::TransportSender;
 
-// use crate::helper_functions::send_udp_packet::send_fake_udp;
+use crate::helper_functions::{send_udp_packet::send_fake_udp, create_payload::{make_payload}};
 
 const INITIAL_SALT: [u8; 20] = [
     0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17,
@@ -16,7 +18,11 @@ const INITIAL_SALT: [u8; 20] = [
 ];
 
 pub async fn handle_udp (
-    udp_packet: UdpPacket<'_>
+    udp_packet: UdpPacket<'_>, 
+    content: &[String],
+    src_ip: Ipv4Addr,
+    dst_ip: Ipv4Addr,
+    tx: &mut TransportSender,
 ) -> Result<Verdict, Box<dyn std::error::Error + Send + Sync>>{
     // Get payload for future work
     let payload = udp_packet.payload();
@@ -53,6 +59,17 @@ pub async fn handle_udp (
 
     // If everythink is true ===> That is QUIC Initial packet
     if is_initial && is_long_header && is_v1 {
+        let payload1 = make_payload(
+            content
+        )?;
+        send_fake_udp(
+            &payload1, 
+            src_ip, 
+            udp_packet.get_source(), 
+            dst_ip, 
+            udp_packet.get_destination(), 
+            tx
+        )?;
         // DCID - Destination Connection ID
         let dcid_len = payload[5] as usize;
 

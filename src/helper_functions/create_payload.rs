@@ -1,8 +1,6 @@
 use rand::Rng;
 use aes_gcm::Aes128Gcm;
 use aes_gcm::aead::{Aead, Payload};
-use nfq::Verdict;
-use pnet::packet::{Packet, udp::UdpPacket};
 use hkdf::Hkdf;
 use sha2::{Sha256};
 use aes::Aes128;
@@ -11,7 +9,7 @@ use aes::cipher::generic_array::GenericArray;
 
 use crate::helper_functions::handle_udp::{get_from_hk, client_secret};
 
-pub fn _make_payload(content:&[String]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>{
+pub fn make_payload(content:&[String]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>{
     let mut payload: Vec<u8> = Vec::new();
 
     // This is average first byte in QUIC Initial packet: 11000000
@@ -41,8 +39,8 @@ pub fn _make_payload(content:&[String]) -> Result<Vec<u8>, Box<dyn std::error::E
     payload.push(token_len);
     // We skip token
 
-    let sni = _random_sni(content);
-    let client_hello = _build_clien_hello(sni);
+    let sni = random_sni(content);
+    let client_hello = build_clien_hello(sni);
 
     let client_hello_len: [u8; 2] = ((client_hello.len() as u16 | 0x4000)).to_be_bytes();
     let mut crypto_cadr: Vec<u8> = [0x06, 0x00].to_vec();
@@ -94,7 +92,7 @@ pub fn _make_payload(content:&[String]) -> Result<Vec<u8>, Box<dyn std::error::E
 }
 
 
-fn _random_sni(content: &[String]) -> &str{
+fn random_sni(content: &[String]) -> &str{
     let count_of_lines = content.len();
     if count_of_lines > 1 {
         let random_domain: usize = rand::thread_rng().gen_range(0..count_of_lines);
@@ -106,7 +104,7 @@ fn _random_sni(content: &[String]) -> &str{
 
 
 
-fn _build_clien_hello(sni: &str) -> Vec<u8>{
+fn build_clien_hello(sni: &str) -> Vec<u8>{
     let mut client_hello: Vec<u8> = Vec::new();
     let mut client_hello_body: Vec<u8> = Vec::new();
     let mut client_hello_extensions: Vec<u8> = Vec::new();

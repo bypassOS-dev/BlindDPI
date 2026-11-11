@@ -7,8 +7,8 @@ use pnet_transport::TransportSender;
 
 
 
-// DOESN'T WORK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-pub fn _send_fake_udp(
+// Is this work..?
+pub fn send_fake_udp(
     payload: &[u8],
     src: Ipv4Addr,
     src_port: u16,

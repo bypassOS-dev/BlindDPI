@@ -117,7 +117,7 @@ habr.com
         tokio::fs::write(russia_site_path, default_domains).await?;
     }
 
-    let _rus_sites: Vec<String> = fs::read_to_string(russia_site_path)
+    let rus_sites: Vec<String> = fs::read_to_string(russia_site_path)
         .expect("[Error] We can't find file 'russia_site.txt'")
         .lines()
         .map(|s| s.trim().to_lowercase())
@@ -138,10 +138,10 @@ habr.com
             &payload, 
             &mut pending, 
             &white_list, 
-            split_tunneling_bool,
+            &rus_sites, 
+            split_tunneling_bool, 
             tx
         ).await?;
-
         msg.set_verdict(verdict);
         queue.verdict(msg)?;
     }
