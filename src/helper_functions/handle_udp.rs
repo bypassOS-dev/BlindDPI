@@ -247,7 +247,7 @@ pub fn client_secret(dcid: &[u8]) -> Result<[u8; 32], Box<dyn std::error::Error 
     Ok(out)
 }
 
-fn get_from_hk(
+pub fn get_from_hk(
     hk: &Hkdf<Sha256>,   
     string: &str, 
     out: &mut [u8]

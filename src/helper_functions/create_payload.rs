@@ -1,6 +1,17 @@
 use rand::Rng;
+use aes_gcm::Aes128Gcm;
+use aes_gcm::aead::{Aead, Payload};
+use nfq::Verdict;
+use pnet::packet::{Packet, udp::UdpPacket};
+use hkdf::Hkdf;
+use sha2::{Sha256};
+use aes::Aes128;
+use aes::cipher::{BlockEncrypt, KeyInit};
+use aes::cipher::generic_array::GenericArray; 
 
-pub fn _make_payload(content:&[String]) -> Vec<u8>{
+use crate::helper_functions::handle_udp::{get_from_hk, client_secret};
+
+pub fn _make_payload(content:&[String]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>{
     let mut payload: Vec<u8> = Vec::new();
 
     // This is average first byte in QUIC Initial packet: 11000000
@@ -47,8 +58,38 @@ pub fn _make_payload(content:&[String]) -> Vec<u8>{
 
     payload.push(0x00);   // Packet Number
 
+    let client_secret = client_secret(&dcid)?;
+    let hk = Hkdf::<Sha256>::from_prk(&client_secret).map_err(|_| "from prk falled")?;
+    let mut client_key = [0u8; 16];
+    let mut client_iv = [0u8; 12];
+    let mut client_hp = [0u8; 16];
+    get_from_hk(&hk, "quic key", &mut client_key)?;
+    get_from_hk(&hk, "quic iv", &mut client_iv)?;
+    get_from_hk(&hk, "quic hp", &mut client_hp)?;
     
-    payload
+    let cipher = Aes128Gcm::new_from_slice(&client_key)?;
+    let ciphertext = match cipher.encrypt(
+        GenericArray::from_slice(&client_iv),
+        Payload { msg: &crypto_cadr, aad: &payload },
+    ) {
+            Ok(dd) => dd,
+            Err(_) => return Ok(payload)    // Just patch, fix later
+    };
+    payload.extend_from_slice(&ciphertext);
+
+    let pn_offset = 18;
+    let sample = &payload[pn_offset + 4..pn_offset + 4 + 16];
+
+    let cipher_hp = Aes128::new(GenericArray::from_slice(&client_hp));
+    let mut block = GenericArray::clone_from_slice(sample);
+    cipher_hp.encrypt_block(&mut block);
+    let mask = &block[..5];
+
+    payload[0] ^= mask[0] & 0x0f;
+    payload[pn_offset] ^= mask[1];
+
+
+    Ok(payload)
 
 }
 
