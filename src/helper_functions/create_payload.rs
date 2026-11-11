@@ -30,17 +30,30 @@ pub fn _make_payload(content:&[String]) -> Vec<u8>{
     payload.push(token_len);
     // We skip token
 
+    let sni = _random_sni(content);
+    let client_hello = _build_clien_hello(sni);
 
-    let sni = random_sni(content);
+    let client_hello_len: [u8; 2] = ((client_hello.len() as u16 | 0x4000)).to_be_bytes();
+    let mut crypto_cadr: Vec<u8> = [0x06, 0x00].to_vec();
 
-    let client_hello = build_clien_hello(sni);
+    crypto_cadr.extend_from_slice(&client_hello_len);
+    crypto_cadr.extend_from_slice(&client_hello);
+    
+    
+    // Length
+    crypto_cadr.resize(1165, 0x00);
+    let length = 1 + crypto_cadr.len() as u16;
+    payload.extend_from_slice(&(length | 0x4000).to_be_bytes());
 
+    payload.push(0x00);   // Packet Number
+
+    
     payload
 
 }
 
 
-fn random_sni(content: &[String]) -> &str{
+fn _random_sni(content: &[String]) -> &str{
     let count_of_lines = content.len();
     if count_of_lines > 1 {
         let random_domain: usize = rand::thread_rng().gen_range(0..count_of_lines);
@@ -52,7 +65,7 @@ fn random_sni(content: &[String]) -> &str{
 
 
 
-fn build_clien_hello(sni: &str) -> Vec<u8>{
+fn _build_clien_hello(sni: &str) -> Vec<u8>{
     let mut client_hello: Vec<u8> = Vec::new();
     let mut client_hello_body: Vec<u8> = Vec::new();
     let mut client_hello_extensions: Vec<u8> = Vec::new();
