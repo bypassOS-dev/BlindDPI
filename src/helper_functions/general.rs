@@ -14,7 +14,8 @@ pub async fn general (
     white_list: &[String],
     content: &[String],
     split_tunneling_bool: bool,
-    tx: &mut pnet_transport::TransportSender
+    tx_tcp: &mut pnet_transport::TransportSender,
+    tx_udp: &mut pnet_transport::TransportSender
 ) -> Result<Verdict, Box<dyn std::error::Error + Send + Sync>> {
     if let Some(ipv4_packet) = Ipv4Packet::new(payload) {
         // ========= If this packet is Ipv4 then get Tcp-packet inside Ipv4 packet ==========
@@ -26,7 +27,7 @@ pub async fn general (
                 ipv4_packet.get_destination().into(), 
                 split_tunneling_bool, 
                 white_list,
-                tx
+                tx_tcp
             ).await;
         }
         if let Some(udp_packet) = UdpPacket::new(ipv4_packet.payload()) {
@@ -35,7 +36,7 @@ pub async fn general (
                 content, 
             ipv4_packet.get_source(),
             ipv4_packet.get_destination(),
-                tx
+                tx_udp
             ).await ;
         }
     } 
@@ -48,7 +49,7 @@ pub async fn general (
                 ipv6_packet.get_destination().into(), 
                 split_tunneling_bool, 
                 white_list,
-                tx
+                tx_tcp
             ).await;
         }
     }

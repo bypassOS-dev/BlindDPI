@@ -16,9 +16,9 @@ use std::process::Command;
 pub async fn run_blinddpi(
     token: tokio_util::sync::CancellationToken, 
     &split_tunneling_bool: &bool
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    //Run main function in another OS-stream
-    let (mut tx, _) = transport_channel(2048, Layer3(IpNextHeaderProtocols::Tcp))?; // Open a special communication channel  
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {    
+    let (mut tx_tcp, _) = transport_channel(65535, Layer3(IpNextHeaderProtocols::Tcp))?;
+    let (mut tx_udp, _) = transport_channel(65535, Layer3(IpNextHeaderProtocols::Udp))?;  
 
     // Run bash script which checking for necessary utils
     #[cfg(target_os = "linux")]
@@ -44,7 +44,7 @@ pub async fn run_blinddpi(
     //====================================================
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(backend(split_tunneling_bool, &mut tx)).ok();
+        rt.block_on(backend(split_tunneling_bool, &mut tx_tcp, &mut tx_udp)).ok();
     });
     //=====================================================
     // If user press ctrl+c/stop then clean all nft-rule (if OS isn't linux then just close programm)

@@ -11,7 +11,8 @@ pub mod iptables;
 
 pub async fn like_main(
     split_tunneling_bool: bool,
-    tx: &mut pnet_transport::TransportSender
+    tx_tcp: &mut pnet_transport::TransportSender,
+    tx_udp: &mut pnet_transport::TransportSender
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut queue = Queue::open()?;
     queue.bind(0)?;
@@ -134,14 +135,10 @@ habr.com
         let mut msg: nfq::Message = queue.recv()?;
         let payload = msg.get_payload().to_vec();
         
-        let verdict = general(
-            &payload, 
-            &mut pending, 
-            &white_list, 
-            &rus_sites, 
-            split_tunneling_bool, 
-            tx
-        ).await?;
+        let verdict = match  general(&payload, &mut pending, &white_list, &rus_sites, split_tunneling_bool, tx_tcp, tx_udp).await {
+            Ok(v) => v,
+            Err(_) => nfq::Verdict::Accept
+        };
         msg.set_verdict(verdict);
         queue.verdict(msg)?;
     }

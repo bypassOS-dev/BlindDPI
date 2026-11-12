@@ -59,17 +59,19 @@ pub async fn handle_udp (
 
     // If everythink is true ===> That is QUIC Initial packet
     if is_initial && is_long_header && is_v1 {
-        let payload1 = make_payload(
-            content
-        )?;
-        send_fake_udp(
-            &payload1, 
-            src_ip, 
-            udp_packet.get_source(), 
-            dst_ip, 
-            udp_packet.get_destination(), 
-            tx
-        )?;
+        if let Ok(payload1) = make_payload(content) {
+            if let Err(_) = send_fake_udp(
+                &payload1, 
+                src_ip, 
+                udp_packet.get_source(), 
+                dst_ip, 
+                udp_packet.get_destination(), 
+                tx
+            ) {
+
+            };
+        };
+        
         // DCID - Destination Connection ID
         let dcid_len = payload[5] as usize;
 
