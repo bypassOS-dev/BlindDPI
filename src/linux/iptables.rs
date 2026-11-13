@@ -31,6 +31,25 @@ pub async fn run_iptables() {
         .status()
         .await
         .expect("[ERROR] CRASHED WHEN CREATED A NFT RULE!");
+
+    let _udp_rule = Command::new("/usr/sbin/nft")
+        .args([
+            "add",
+            "rule",
+            "inet",
+            "blind_dpi",
+            "output",
+            "udp",
+            "dport",
+            "{ 443, 50000-65535 }",
+            "counter",
+            "queue",
+            "num",
+            "0",
+        ])
+        .status()
+        .await
+        .expect("[ERROR] CRASHED WHEN CREATING UDP NFT RULE!");
 }
 pub async fn remove_iptables() {
     let _ = Command::new("/usr/sbin/nft")
