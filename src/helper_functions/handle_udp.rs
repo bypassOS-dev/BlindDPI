@@ -26,6 +26,24 @@ pub async fn handle_udp (
 ) -> Result<Verdict, Box<dyn std::error::Error + Send + Sync>>{
     // Get payload for future work
     let payload = udp_packet.payload();
+    let dst_port = udp_packet.get_destination();
+
+    let is_discord_discovery = payload.len() == 74 && payload.starts_with(&[0x00, 0x01, 0x00, 0x46]);
+    let is_stun = payload.len() >= 20 && payload.get(4..8) == Some(&[0x21, 0x12, 0xa4, 0x42]);
+
+    if dst_port >= 1024  && (is_discord_discovery || is_stun) {
+        if let Ok(fake_payload) = make_payload(content) {
+            let _ = send_fake_udp(
+                &fake_payload,
+                src_ip,
+                udp_packet.get_source(),
+                dst_ip,
+                dst_port,
+                tx,
+            );
+        }
+        return Ok(Verdict::Accept);
+    }
 
     // If that's isn't https 
     // or if payload of packet less than 1200 
@@ -68,7 +86,7 @@ pub async fn handle_udp (
                 udp_packet.get_destination(), 
                 tx
             ) {
-
+                // Maybe later I will create somethink for logs
             };
         };
         

@@ -41,7 +41,7 @@ pub async fn run_iptables() {
             "output",
             "udp",
             "dport",
-            "{ 443, 50000-65535 }",
+            "{ 443, 1024-65535 }",
             "counter",
             "queue",
             "num",
