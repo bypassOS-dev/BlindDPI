@@ -34,21 +34,25 @@ pub async fn handle_udp (
 
     if dst_port >= 1024  && (is_discord_discovery || is_stun) {
         let mut payload = Vec::new();
-
         payload.extend_from_slice(&[0x00, 0x01, 0x00, 0x46]);
 
-        let mut random_bytes = [0u8; 70];
+        let mut random_bytes = [0u8; 210];     // 70 * 3 = 210
         rand::thread_rng().fill(&mut random_bytes[..]);
-        payload.extend_from_slice(&random_bytes);
 
-        let _ = send_fake_udp(
-            &payload, 
-            src_ip, 
-            udp_packet.get_source(), 
-            dst_ip, 
-            udp_packet.get_destination(), 
-            tx
-        );
+        payload.extend_from_slice(&random_bytes);
+        for _ in 0..3 {
+            let _ = send_fake_udp(
+                &payload, 
+                src_ip, 
+                udp_packet.get_source(), 
+                dst_ip, 
+                udp_packet.get_destination(), 
+                tx
+            );
+        }
+        
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await; 
+        
         return Ok(Verdict::Accept);
     }
 
