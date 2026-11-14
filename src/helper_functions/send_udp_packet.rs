@@ -38,7 +38,7 @@ pub fn send_fake_udp(
             ip_packet.set_destination(dst);
             ip_packet.set_source(src);
             ip_packet.set_header_length(5);
-            ip_packet.set_ttl(15);
+            ip_packet.set_ttl(12);
             ip_packet.set_next_level_protocol(IpNextHeaderProtocols::Udp);
             ip_packet.set_payload(&udp_buffer);
             ip_packet.set_total_length(ip_len as u16);

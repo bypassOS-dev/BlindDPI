@@ -3,6 +3,7 @@ use aes_gcm::aead::{Aead, Payload};
 use nfq::Verdict;
 use pnet::packet::{Packet, udp::UdpPacket};
 use hkdf::Hkdf;
+use rand::Rng;
 use sha2::{Sha256};
 use aes::Aes128;
 use aes::cipher::{BlockEncrypt, KeyInit};
@@ -32,16 +33,22 @@ pub async fn handle_udp (
     let is_stun = payload.len() >= 20 && payload.get(4..8) == Some(&[0x21, 0x12, 0xa4, 0x42]);
 
     if dst_port >= 1024  && (is_discord_discovery || is_stun) {
-        if let Ok(fake_payload) = make_payload(content) {
-            let _ = send_fake_udp(
-                &fake_payload,
-                src_ip,
-                udp_packet.get_source(),
-                dst_ip,
-                dst_port,
-                tx,
-            );
-        }
+        let mut payload = Vec::new();
+
+        payload.extend_from_slice(&[0x00, 0x01, 0x00, 0x46]);
+
+        let mut random_bytes = [0u8; 70];
+        rand::thread_rng().fill(&mut random_bytes[..]);
+        payload.extend_from_slice(&random_bytes);
+
+        let _ = send_fake_udp(
+            &payload, 
+            src_ip, 
+            udp_packet.get_source(), 
+            dst_ip, 
+            udp_packet.get_destination(), 
+            tx
+        );
         return Ok(Verdict::Accept);
     }
 
